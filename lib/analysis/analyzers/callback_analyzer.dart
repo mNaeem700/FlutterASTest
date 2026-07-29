@@ -1,0 +1,3 @@
+class CallbackAnalyzer {
+  const CallbackAnalyzer();
+}

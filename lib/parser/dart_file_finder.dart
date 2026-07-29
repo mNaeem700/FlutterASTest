@@ -5,23 +5,50 @@ class DartFileFinder {
   const DartFileFinder();
 
   Future<List<String>> findFiles(String projectPath) async {
-    final dir = Directory(projectPath);
-    if (!await dir.exists()) {
-      return [];
-    }
-
     final dartFiles = <String>[];
+    final rootDir = Directory(projectPath);
 
-    // Project ki directory mein recursive search
-    final stream = dir.list(recursive: true, followLinks: false);
+    if (!await rootDir.exists()) return dartFiles;
 
-    await for (final entity in stream) {
-      if (entity is File && entity.path.endsWith('.dart')) {
-        // Flutter ke auto-generated folders (build aur .dart_tool) ko ignore karna hai
-        if (!entity.path.contains('${p.separator}build${p.separator}') &&
-            !entity.path.contains('${p.separator}.dart_tool${p.separator}')) {
-          dartFiles.add(entity.path);
+    // In folders mein scan nahi karna (Time bachane ke liye)
+    final excludedDirs = {
+      'build',
+      '.dart_tool',
+      '.git',
+      '.idea',
+      'ios',
+      'android',
+      'web',
+      'macos',
+      'windows',
+      'linux'
+    };
+
+    // BFS (Breadth-First Search) approach taake excluded folders pehli fursat mein skip ho jayein
+    final directoriesToScan = <Directory>[rootDir];
+
+    while (directoriesToScan.isNotEmpty) {
+      final currentDir = directoriesToScan.removeLast();
+
+      try {
+        final entities = await currentDir.list(followLinks: false).toList();
+
+        for (final entity in entities) {
+          if (entity is Directory) {
+            final dirName = p.basename(entity.path);
+            // Agar folder excluded list mein NAHI hai, toh hi andar jao
+            if (!excludedDirs.contains(dirName) && !dirName.startsWith('.')) {
+              directoriesToScan.add(entity);
+            }
+          } else if (entity is File && entity.path.endsWith('.dart')) {
+            // Option: Agar aap generated files (.g.dart, .freezed.dart) ko bhi
+            // ignore karna chahte hain toh yahan condition laga sakte hain.
+            // Filhal hum sab .dart files le rahe hain.
+            dartFiles.add(entity.path);
+          }
         }
+      } catch (e) {
+        // Permission issues ko ignore karein
       }
     }
 

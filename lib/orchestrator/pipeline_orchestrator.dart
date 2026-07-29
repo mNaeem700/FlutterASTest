@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:flutterastest/orchestrator/dummy_module.dart';
 import 'package:flutterastest/parser/parser_module.dart';
+// 👇 1. ADDED THE ANALYSIS MODULE IMPORT 👇
+import 'package:flutterastest/analysis/analysis_module.dart';
 import 'package:logging/logging.dart';
 
 import 'contracts/pipeline_module.dart';
@@ -120,6 +121,10 @@ class PipelineOrchestrator {
   void _registerModules() {
     _registry.register(
       ParserModule(),
+    );
+    // 👇 Just register it normally now!
+    _registry.register(
+      const AnalysisModule(),
     );
   }
 }
