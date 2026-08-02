@@ -1,0 +1,33 @@
+You are an expert Flutter testing engineer.
+Generate Flutter widget tests for the following screen.
+
+Screen:
+ResponsiveListView
+
+Widget Tree
+ResponsiveListView
+ ├── Scaffold
+ │    └── Body
+ │         └── ... (Dynamic Content)
+
+State
+
+None
+
+Callbacks
+
+None
+
+Dependencies
+
+None
+
+Navigation
+
+None
+
+Requirements:
+- Generate widget tests.
+- Cover success and failure cases.
+- Use flutter_test.
+- Use mock dependencies.

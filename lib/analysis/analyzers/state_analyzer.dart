@@ -1,19 +1,20 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:flutterastest/parser/models/parser_result.dart';
 import '../models/state_model.dart';
 import '../models/state_variable.dart';
-import '../models/state_mutation.dart'; // 👇 ADDED MUTATION MODEL
+import '../models/state_mutation.dart';
 
 class StateAnalyzer {
   const StateAnalyzer();
 
-  List<StateModel> analyse(ParserResult parserResult) {
+  List<StateModel> analyse(ParserResult parserResult, {String? projectPath}) {
     final Map<String, StateModel> uniqueStates = {};
 
     for (final unitResult in parserResult.resolvedUnits) {
-      final visitor = _StateVisitor(
-          unitResult.lineInfo); // Pass lineInfo for accurate line numbers
+      final visitor = _StateVisitor(unitResult.lineInfo);
       unitResult.unit.accept(visitor);
 
       for (final state in visitor.states) {
@@ -21,7 +22,159 @@ class StateAnalyzer {
       }
     }
 
-    return uniqueStates.values.toList();
+    final statesList = uniqueStates.values.toList();
+
+    // Print Explainable Formula & Metrics Breakdown for Reviewers
+    _printExplainableComplexity(statesList);
+
+    // Optional Export for Evaluation, Tables & Graphs
+    if (projectPath != null) {
+      _exportStateAnalysis(statesList, projectPath);
+    }
+
+    return statesList;
+  }
+
+  void _printExplainableComplexity(List<StateModel> states) {
+    print('\n========================================');
+    print('State Complexity Ranking (Explainable)');
+    print('========================================');
+    print('Complexity Formula:');
+    print(
+        'Score = Variables + (Reactive × 3) + (Collections × 2) + (Controllers × 2) + (Repositories × 3) + (Services × 2)\n');
+
+    // Sort descending by complexity score if properties exist, or list them nicely
+    for (int i = 0; i < states.length; i++) {
+      final s = states[i];
+
+      // Calculate metrics on the fly
+      final int totalVars = s.variables.length;
+      final int reactiveCount =
+          s.variables.where((v) => v.category == 'Reactive').length;
+      final int collectionCount =
+          s.variables.where((v) => v.category == 'Collection').length;
+      final int controllerCount =
+          s.variables.where((v) => v.category == 'UI Controller').length;
+      final int repositoryCount =
+          s.variables.where((v) => v.category == 'Repository').length;
+      final int serviceCount =
+          s.variables.where((v) => v.category == 'Service').length;
+
+      final int score = totalVars +
+          (reactiveCount * 3) +
+          (collectionCount * 2) +
+          (controllerCount * 2) +
+          (repositoryCount * 3) +
+          (serviceCount * 2);
+
+      print('${i + 1}. Class : ${s.className}');
+      print('   Variables      : $totalVars');
+      print('   Reactive       : $reactiveCount');
+      print('   Collections    : $collectionCount');
+      print('   Controllers    : $controllerCount');
+      print('   Repositories   : $repositoryCount');
+      print('   Services       : $serviceCount');
+      print('   ------------------------------');
+      print('   Complexity Score : $score\n');
+    }
+  }
+
+  void _exportStateAnalysis(List<StateModel> states, String projectPath) {
+    try {
+      // 1. JSON Export
+      final jsonMap = {
+        'timestamp': DateTime.now().toIso8601String(),
+        'classes': states.map((s) {
+          final totalVars = s.variables.length;
+          final mutableCount = s.variables.where((v) => !v.isFinal).length;
+          final immutableCount = s.variables.where((v) => v.isFinal).length;
+          final reactiveCount =
+              s.variables.where((v) => v.category == 'Reactive').length;
+          final collectionCount =
+              s.variables.where((v) => v.category == 'Collection').length;
+          final controllerCount =
+              s.variables.where((v) => v.category == 'UI Controller').length;
+          final repositoryCount =
+              s.variables.where((v) => v.category == 'Repository').length;
+          final serviceCount =
+              s.variables.where((v) => v.category == 'Service').length;
+          final complexity = totalVars +
+              (reactiveCount * 3) +
+              (collectionCount * 2) +
+              (controllerCount * 2) +
+              (repositoryCount * 3) +
+              (serviceCount * 2);
+
+          return {
+            'class': s.className,
+            'variables': totalVars,
+            'mutable': mutableCount,
+            'immutable': immutableCount,
+            'reactive': reactiveCount,
+            'collections': collectionCount,
+            'controllers': controllerCount,
+            'repositories': repositoryCount,
+            'services': serviceCount,
+            'complexity': complexity,
+            'variable_details': s.variables
+                .map((v) => {
+                      'name': v.name,
+                      'type': v.type,
+                      'category': v.category,
+                      'final': v.isFinal,
+                      'late': v.isLate,
+                      'nullable': v.isNullable,
+                      'static': v.isStatic,
+                    })
+                .toList(),
+          };
+        }).toList(),
+      };
+
+      final jsonFile = File('$projectPath/state_analysis.json');
+      jsonFile.writeAsStringSync(
+          const JsonEncoder.withIndent('  ').convert(jsonMap));
+
+      // 2. CSV Summary Export
+      final csvBuffer = StringBuffer();
+      csvBuffer.writeln(
+          'Class,Variables,Mutable,Immutable,Reactive,Collections,Controllers,Repositories,Services,Complexity');
+
+      for (var s in states) {
+        final totalVars = s.variables.length;
+        final mutableCount = s.variables.where((v) => !v.isFinal).length;
+        final immutableCount = s.variables.where((v) => v.isFinal).length;
+        final reactiveCount =
+            s.variables.where((v) => v.category == 'Reactive').length;
+        final collectionCount =
+            s.variables.where((v) => v.category == 'Collection').length;
+        final controllerCount =
+            s.variables.where((v) => v.category == 'UI Controller').length;
+        final repositoryCount =
+            s.variables.where((v) => v.category == 'Repository').length;
+        final serviceCount =
+            s.variables.where((v) => v.category == 'Service').length;
+        final complexity = totalVars +
+            (reactiveCount * 3) +
+            (collectionCount * 2) +
+            (controllerCount * 2) +
+            (repositoryCount * 3) +
+            (serviceCount * 2);
+
+        csvBuffer
+            .writeln('${s.className},$totalVars,$mutableCount,$immutableCount,'
+                '$reactiveCount,$collectionCount,$controllerCount,'
+                '$repositoryCount,$serviceCount,$complexity');
+      }
+
+      final csvFile = File('$projectPath/state_analysis.csv');
+      csvFile.writeAsStringSync(csvBuffer.toString());
+
+      print(
+          '[INFO] Successfully exported state_analysis.json and state_analysis.csv');
+    } catch (e) {
+      print('[WARNING] Failed to export state metrics: $e');
+    }
   }
 }
 
@@ -57,6 +210,17 @@ class _StateVisitor extends RecursiveAstVisitor<void> {
       return 'Repository';
     if (type.endsWith('Service') || type.contains('ApiClient'))
       return 'Service';
+    // Refined External Resource category types
+    const externalTypes = {
+      'File',
+      'XFile',
+      'Uint8List',
+      'ByteData',
+      'Directory',
+      'IOSink',
+      'RandomAccessFile'
+    };
+    if (externalTypes.contains(type)) return 'External Resource';
     if (type.startsWith('List<') ||
         type.startsWith('Map<') ||
         type.startsWith('Set<') ||
@@ -96,8 +260,7 @@ class _StateVisitor extends RecursiveAstVisitor<void> {
 
         for (final variable in member.fields.variables) {
           final varName = variable.name.lexeme;
-          declaredVariables
-              .add(varName); // Track variables for mutation matching
+          declaredVariables.add(varName);
           uniqueVariables[varName] = StateVariable(
             name: varName,
             type: cleanType,
@@ -111,14 +274,11 @@ class _StateVisitor extends RecursiveAstVisitor<void> {
       }
     }
 
-    // Temporarily attach visitor context to harvest mutations during method/constructor visits
-    // We run standard visitor traversal for members
     for (final member in node.members) {
       if (member is MethodDeclaration) {
         final prevMethod = currentMethod;
         currentMethod = member.name.lexeme;
 
-        // Visit method body for mutations
         member.accept(_MutationVisitor(currentClass!, currentMethod!,
             declaredVariables, lineInfo, mutations));
 
@@ -136,7 +296,7 @@ class _StateVisitor extends RecursiveAstVisitor<void> {
         variables: sortedVariables,
         mutatorMethods: const [],
         triggers: const [],
-        mutations: mutations, // 👇 POPULATED MUTATIONS
+        mutations: mutations,
       ),
     );
 
@@ -144,7 +304,6 @@ class _StateVisitor extends RecursiveAstVisitor<void> {
   }
 }
 
-// Dedicated visitor to detect mutations inside methods
 class _MutationVisitor extends RecursiveAstVisitor<void> {
   _MutationVisitor(this.enclosingClass, this.enclosingMethod,
       this.declaredVariables, this.lineInfo, this.mutations);
@@ -167,8 +326,6 @@ class _MutationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitAssignmentExpression(AssignmentExpression node) {
     final targetSource = node.leftHandSide.toSource();
-
-    // Check standard assignment or Rx value update (e.g. count.value = 5)
     String? matchedVar;
     String mutationType = 'assignment';
 

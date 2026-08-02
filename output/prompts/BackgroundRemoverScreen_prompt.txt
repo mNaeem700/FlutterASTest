@@ -1,0 +1,126 @@
+You are an expert Flutter testing engineer.
+Generate Flutter widget tests for the following screen.
+
+Screen:
+BackgroundRemoverScreen
+
+Widget Tree
+BackgroundRemoverScreen
+ ├── Scaffold
+ │    └── Body
+ │         └── ... (Dynamic Content)
+
+State
+
+HomeController
+
+Variables
+
+_audioFile
+_audioName
+_compressedImageFile
+_compressedVideoFile
+_file
+_multifiles
+_pickedpdf
+_videoFile
+adService
+aiImageUrl
+aiImgLoader
+backgroundImageUrl
+backimageLoader
+compressProgress
+compressedSize
+compressedVPC
+homeRepo
+imageTopdfUrl
+imgtoPdfLoader
+isCompressImageLoadeer
+isCompressing
+isDowloadLoader
+isGenerated
+isImageDownloaded
+isImagePicked
+isImagePickerLoading
+isLoading
+isMultiPdfLoading
+isPickingVideo
+isShareLoader
+multiPdfUrl
+originalSize
+originalVPC
+pdfCompressLoader
+pdfCompressUrl
+pngtoSvgUrl
+pngtosvgLoading
+qualityMap
+selectedOption
+selectedPlatform
+selectedQuality
+selectedStyle
+svgtoPngUrl
+textimageUrl
+texttoImgLoader
+
+AuthController
+
+Variables
+
+_isDemo
+_isLogout
+_profile
+_profileLoader
+authRepo
+coinPlans
+creditHistory
+creditHistorylist
+currentStep
+emailController
+hideConfirmPassword
+hidePassword
+iap
+isCreditHistoryLoader
+isEmailLoader
+isForgotloader
+isLoading
+isPaymentLoader
+isPaymentloader
+isSignInLoader
+isSignuploader
+nameController
+packs
+passwordController1
+selectedPackIndex
+splashRepo
+updateCoinsLoader
+userCoins
+userData
+
+Callbacks
+
+IconButton.onPressed
+→ AuthController.action()
+
+RefreshIndicator.onRefresh
+→ AuthController.action()
+
+SettingsTile.onTap
+→ AuthController.deleteAccount(context)
+
+SettingsTile.onTap
+→ AuthController.logOut(context)
+
+Dependencies
+
+HomeController
+AuthController
+
+Navigation
+
+None
+
+Requirements:
+- Generate widget tests.
+- Cover success and failure cases.
+- Use flutter_test.
+- Use mock dependencies.

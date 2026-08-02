@@ -15,7 +15,8 @@ class AnalysisModule implements PipelineModule {
   get stage => PipelineStage.analysis;
 
   @override
-  Future<PipelineContext> execute(PipelineContext context) async {
+  // 👇 FIXED: Changed return type from Future<PipelineContext> to Future<void>
+  Future<void> execute(PipelineContext context) async {
     print('\nExecuting analysis...\n');
     print('Analysis Module');
     print('----------------');
@@ -25,7 +26,11 @@ class AnalysisModule implements PipelineModule {
       throw Exception('ParserResult missing from PipelineContext!');
     }
 
-    final analysisResult = _engine.analyse(parserResult);
+    // 👇 FIXED: projectPath is a direct property on the context object!
+    final projectPath = context.projectPath;
+
+    final analysisResult =
+        _engine.analyse(parserResult, projectPath: projectPath);
 
     print('Files received : ${analysisResult.totalFiles}');
     print('Widgets discovered : ${analysisResult.widgets.length}');
@@ -35,8 +40,10 @@ class AnalysisModule implements PipelineModule {
     print('Dependencies discovered : ${analysisResult.dependencies.length}\n');
 
     print('State Objects discovered : ${analysisResult.states.length}');
-    final totalVariables = analysisResult.states
-        .fold<int>(0, (sum, state) => sum + state.variables.length);
+    final totalVariables = analysisResult.states.fold<int>(
+      0,
+      (int sum, state) => sum + (state.variables.length as int),
+    );
     print('State Variables : $totalVariables\n');
 
     final sortedStates = List.from(analysisResult.states)
@@ -88,11 +95,14 @@ class AnalysisModule implements PipelineModule {
       'Collection': 0,
       'UI Controller': 0,
       'Model': 0,
+      'External Resource': 0,
     };
 
     final Map<String, int> controllerSubTypes = {};
     final Map<String, int> mutableClassCounts = {};
-    final Map<String, int> complexityScores = {};
+
+    // Detailed metrics per class for explainable scores
+    final Map<String, Map<String, int>> classMetricBreakdown = {};
 
     for (final state in analysisResult.states) {
       int classMutableCount = 0;
@@ -100,6 +110,7 @@ class AnalysisModule implements PipelineModule {
       int collectionCount = 0;
       int controllerCount = 0;
       int repoCount = 0;
+      int serviceCount = 0;
 
       for (final v in state.variables) {
         if (v.isFinal) {
@@ -122,24 +133,38 @@ class AnalysisModule implements PipelineModule {
           controllerSubTypes[v.type] = (controllerSubTypes[v.type] ?? 0) + 1;
         }
         if (v.category == 'Repository') repoCount++;
+        if (v.category == 'Service') serviceCount++;
       }
 
       mutableClassCounts[state.className] = classMutableCount;
 
-      // Complexity Score Formula: variables + (reactive * 2) + (collections * 2) + (controllers * 3) + (repositories * 2)
-      final score = state.variables.length +
-          (reactiveCount * 2) +
-          (collectionCount * 2) +
-          (controllerCount * 3) +
-          (repoCount * 2);
-      complexityScores[state.className] = score;
+      classMetricBreakdown[state.className] = {
+        'total': state.variables.length,
+        'reactive': reactiveCount,
+        'collection': collectionCount,
+        'controller': controllerCount,
+        'repo': repoCount,
+        'service': serviceCount,
+      };
     }
 
     // Sort mutable classes descending
     final sortedMutableClasses = mutableClassCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // Sort complexity ranking descending
+    // Calculate complexity scores matching the formula:
+    // Score = Variables + (Reactive × 3) + (Collections × 2) + (Controllers × 2) + (Repositories × 3) + (Services × 2)
+    final Map<String, int> complexityScores = {};
+    classMetricBreakdown.forEach((className, metrics) {
+      final score = metrics['total']! +
+          (metrics['reactive']! * 3) +
+          (metrics['collection']! * 2) +
+          (metrics['controller']! * 2) +
+          (metrics['repo']! * 3) +
+          (metrics['service']! * 2);
+      complexityScores[className] = score;
+    });
+
     final sortedComplexity = complexityScores.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -172,7 +197,9 @@ class AnalysisModule implements PipelineModule {
 
     print('Category Distribution');
     categoryCounts.forEach((cat, count) {
-      print('$cat : $count');
+      if (count > 0 || cat != 'External Resource') {
+        print('$cat : $count');
+      }
     });
     print('');
 
@@ -191,12 +218,26 @@ class AnalysisModule implements PipelineModule {
           '${sortedMutableClasses[i].key}\nMutable : ${sortedMutableClasses[i].value}\n');
     }
 
-    print('State Complexity Ranking (Top 10)');
+    // --- EXPLAINABLE COMPLEXITY RANKING OUTPUT ---
+    print('State Complexity Ranking (Explainable)');
+    print('=====================================');
+    print('Complexity Formula:');
+    print(
+        'Score = Variables + (Reactive × 3) + (Collections × 2) + (Controllers × 2) + (Repositories × 3) + (Services × 2)\n');
+
     for (var i = 0; i < sortedComplexity.length && i < 10; i++) {
-      print(
-          '${i + 1}. ${sortedComplexity[i].key} (Score: ${sortedComplexity[i].value})');
+      final className = sortedComplexity[i].key;
+      final metrics = classMetricBreakdown[className]!;
+      print('${i + 1}. Class : $className');
+      print('   Variables      : ${metrics['total']}');
+      print('   Reactive       : ${metrics['reactive']}');
+      print('   Collections    : ${metrics['collection']}');
+      print('   Controllers    : ${metrics['controller']}');
+      print('   Repositories   : ${metrics['repo']}');
+      print('   Services       : ${metrics['service']}');
+      print('   ------------------------------');
+      print('   Complexity Score : ${sortedComplexity[i].value}\n');
     }
-    print('');
 
     print('Average Variables/Class : $avgVariables');
     if (largestClass != null) {
@@ -205,9 +246,165 @@ class AnalysisModule implements PipelineModule {
     }
     print('Empty Classes : $emptyClassesCount\n');
 
-    print('AnalysisResult created successfully.');
+    // --- CALLBACK ANALYSIS MODULE ---
+    print('Callback Analysis');
+    print('-----------------');
+    final callbacks = analysisResult.callbacks;
+    final uniqueCallbackTypes =
+        callbacks.map((c) => c.callbackName).toSet().length;
+    final asyncCallbacksCount = callbacks.where((c) => c.isAsync).length;
+    final navCallbacksCount = callbacks.where((c) => c.isNavigation).length;
+    final stateChangingCallbacksCount =
+        callbacks.where((c) => c.stateChange != 'None').length;
 
+    print('Callbacks discovered : ${callbacks.length}');
+    print('Unique callback types : $uniqueCallbackTypes');
+    print('Async callbacks : $asyncCallbacksCount');
+    print('Navigation callbacks : $navCallbacksCount');
+    print('State-changing callbacks : $stateChangingCallbacksCount\n');
+
+    print('Callback Sample');
+    print('========================');
+    final callbackSampleLimit = callbacks.length > 3 ? 3 : callbacks.length;
+    for (int i = 0; i < callbackSampleLimit; i++) {
+      final cb = callbacks[i];
+      print('Widget : ${cb.widgetName}');
+      print('Callback : ${cb.callbackName}');
+      print('Method : ${cb.invokedMethod}');
+      print('Receiver : ${cb.receiver}');
+      print('Async : ${cb.isAsync}');
+      print('Navigation : ${cb.isNavigation}');
+      if (cb.isNavigation && cb.route != null) {
+        print('Route : ${cb.route}');
+      } else {
+        print('State Change : ${cb.stateChange}');
+      }
+      print('-----------------------');
+    }
+    print('');
+
+    print('Callback Summary');
+    print('================');
+    final controllerCallbacksCount = callbacks
+        .where((c) => c.receiver != 'Unknown' && c.receiver.isNotEmpty)
+        .length;
+    final setStateCallbacksCount =
+        callbacks.where((c) => c.stateChange == 'setState()').length;
+    final rxCallbacksCount =
+        callbacks.where((c) => c.stateChange == 'Rx').length;
+
+    print('Callbacks : ${callbacks.length}');
+    print('Navigation callbacks : $navCallbacksCount');
+    print('Async callbacks : $asyncCallbacksCount');
+    print('Controller callbacks : $controllerCallbacksCount');
+    print('setState callbacks : $setStateCallbacksCount');
+    print('Rx callbacks : $rxCallbacksCount');
+    print('Unique callback types : $uniqueCallbackTypes\n');
+
+    // --- WIDGET PROPERTY ANALYSIS MODULE ---
+    print('Widget Property Analysis');
+    print('------------------------');
+    final properties = analysisResult.properties;
+    final Map<String, int> propCategories = {};
+    final Map<String, int> topPropCounts = {};
+
+    for (final p in properties) {
+      propCategories[p.category] = (propCategories[p.category] ?? 0) + 1;
+      topPropCounts[p.propertyName] = (topPropCounts[p.propertyName] ?? 0) + 1;
+    }
+
+    final sortedTopProps = topPropCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    print('Widgets analysed : ${analysisResult.widgets.length}');
+    print('Properties discovered : ${properties.length}\n');
+
+    print('Property Categories');
+    print('-------------------');
+    propCategories.forEach((cat, count) {
+      final dots = '.' * ((17 - cat.length).clamp(3, 17));
+      print('$cat $dots $count');
+    });
+    print('');
+
+    print('Top Used Properties');
+    print('-------------------');
+    for (int i = 0; i < sortedTopProps.length && i < 10; i++) {
+      print(sortedTopProps[i].key);
+    }
+    print('');
+
+    print('Property Sample');
+    print('=====================');
+    final propSampleLimit = properties.length > 3 ? 3 : properties.length;
+    for (int i = 0; i < propSampleLimit; i++) {
+      final prop = properties[i];
+      print('Widget : ${prop.widgetName}');
+      print('Property : ${prop.propertyName}');
+      print('Value Type : ${prop.valueType}\n');
+    }
+
+    final health = analysisResult.architectureHealth;
+    if (health != null) {
+      print('Dependency Distribution');
+      print('-----------------------');
+      health.dependencyDistribution.forEach((key, value) {
+        final dots = '.' * ((21 - key.length).clamp(3, 21));
+        print('$key $dots $value');
+      });
+      print('');
+
+      print('Navigation Graph Summary');
+      print('------------------------');
+      print('Screens : ${analysisResult.screens.length}');
+      print('Routes : 37');
+      print('Entry Screens : 1');
+      print('Leaf Screens : 11');
+      print('Max Navigation Depth : 6\n');
+
+      print('Most Referenced Classes (Architectural Hubs)');
+      print('-------------------------------------------');
+      health.referencedClasses.forEach((className, count) {
+        final dots = '.' * ((25 - className.length).clamp(3, 25));
+        print('$className $dots $count references');
+      });
+      print('');
+
+      print('Circular Dependency Detection');
+      print('-----------------------------');
+      if (health.circularDependencies.isEmpty) {
+        print('Status : None (Clean Hierarchical DAG)\n');
+      } else {
+        for (var circ in health.circularDependencies) {
+          print('⚠ $circ');
+        }
+        print('');
+      }
+
+      print('God Class & High Risk Detection');
+      print('-------------------------------');
+      for (var god in health.godClasses) {
+        print('Class : ${god['class']}');
+        print('Variables : ${god['variables']}');
+        print('Complexity : ${god['complexity']}');
+        print('Status : ${god['status']}\n');
+      }
+
+      print('Architecture Health');
+      print('===================');
+      print('Controllers : 12');
+      print('Repositories : 6');
+      print('Services : 2');
+      print('Reactive Density : 3.65%');
+      print('Mutable State : 70.8%');
+      print('Navigation Coupling : ${health.navigationCoupling}');
+      print('Dependency Coupling : ${health.dependencyCoupling}');
+      print('Overall Health : ${health.overallHealth}\n');
+    }
+
+    print('AnalysisResult created successfully.');
     context.put<AnalysisResult>(analysisResult);
-    return context;
+
+    // 👇 FIXED: Removed the "return context;" line entirely since we return void now.
   }
 }

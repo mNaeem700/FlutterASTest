@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutterastest/parser/parser_module.dart';
-// 👇 1. ADDED THE ANALYSIS MODULE IMPORT 👇
 import 'package:flutterastest/analysis/analysis_module.dart';
+// 👇 1. ADD PKG MODULE IMPORT
+import 'package:flutterastest/pkg/pkg_module.dart';
+import 'package:flutterastest/prompt_builder/prompt_module.dart';
+import 'package:flutterastest/prompt_optimizer/prompt_optimizer_module.dart';
 import 'package:logging/logging.dart';
 
 import 'contracts/pipeline_module.dart';
@@ -122,9 +125,16 @@ class PipelineOrchestrator {
     _registry.register(
       ParserModule(),
     );
-    // 👇 Just register it normally now!
     _registry.register(
       const AnalysisModule(),
     );
+    // 👇 2. REGISTER PKG MODULE HERE
+    _registry.register(
+      PkgModule(),
+    );
+    _registry.register(
+      PromptModule(),
+    );
+    _registry.register(PromptOptimizerModule());
   }
 }

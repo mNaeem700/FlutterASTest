@@ -1,0 +1,75 @@
+You are an expert Flutter testing engineer.
+Generate Flutter widget tests for the following screen.
+
+Screen:
+ProfileScreen
+
+Widget Tree
+ProfileScreen
+ ├── Scaffold
+ │    └── Body
+ │         └── ... (Dynamic Content)
+
+State
+
+AuthController
+
+Variables
+
+_isDemo
+_isLogout
+_profile
+_profileLoader
+authRepo
+coinPlans
+creditHistory
+creditHistorylist
+currentStep
+emailController
+hideConfirmPassword
+hidePassword
+iap
+isCreditHistoryLoader
+isEmailLoader
+isForgotloader
+isLoading
+isPaymentLoader
+isPaymentloader
+isSignInLoader
+isSignuploader
+nameController
+packs
+passwordController1
+selectedPackIndex
+splashRepo
+updateCoinsLoader
+userCoins
+userData
+
+Callbacks
+
+IconButton.onPressed
+→ AuthController.action()
+
+RefreshIndicator.onRefresh
+→ AuthController.action()
+
+SettingsTile.onTap
+→ AuthController.deleteAccount(context)
+
+SettingsTile.onTap
+→ AuthController.logOut(context)
+
+Dependencies
+
+AuthController
+
+Navigation
+
+None
+
+Requirements:
+- Generate widget tests.
+- Cover success and failure cases.
+- Use flutter_test.
+- Use mock dependencies.
