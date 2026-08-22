@@ -1,12 +1,14 @@
 import 'dart:async';
+import 'package:flutterastest/llm/gemini_llm_service.dart';
+import 'package:logging/logging.dart';
 
+import 'package:flutterastest/execution/executor_module.dart';
+import 'package:flutterastest/llm/llm_module.dart';
 import 'package:flutterastest/parser/parser_module.dart';
 import 'package:flutterastest/analysis/analysis_module.dart';
-// 👇 1. ADD PKG MODULE IMPORT
 import 'package:flutterastest/pkg/pkg_module.dart';
 import 'package:flutterastest/prompt_builder/prompt_module.dart';
 import 'package:flutterastest/prompt_optimizer/prompt_optimizer_module.dart';
-import 'package:logging/logging.dart';
 
 import 'contracts/pipeline_module.dart';
 import 'execution_trace.dart';
@@ -21,7 +23,6 @@ class PipelineOrchestrator {
   }) : _registry = registry ?? ModuleRegistry();
 
   final Logger _logger = Logger('PipelineOrchestrator');
-
   final ModuleRegistry _registry;
 
   Future<PipelineResult> start({
@@ -122,19 +123,16 @@ class PipelineOrchestrator {
   }
 
   void _registerModules() {
-    _registry.register(
-      ParserModule(),
-    );
-    _registry.register(
-      const AnalysisModule(),
-    );
-    // 👇 2. REGISTER PKG MODULE HERE
-    _registry.register(
-      PkgModule(),
-    );
-    _registry.register(
-      PromptModule(),
-    );
+    _registry.register(ParserModule());
+    _registry.register(const AnalysisModule());
+    _registry.register(PkgModule());
+    _registry.register(PromptModule());
     _registry.register(PromptOptimizerModule());
+    _registry.register(LlmModule());
+    _registry.register(LlmModule(
+        llmService: GeminiLlmService(
+            apiKey: 'AQ.Ab8RN6KuG491bEE05WjDbKpSviyyjW3xVFaRvJqNOMtLqsWeBA')));
+
+    _registry.register(ExecutorModule());
   }
 }
