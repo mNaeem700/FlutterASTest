@@ -357,10 +357,9 @@ class AnalysisModule implements PipelineModule {
       print('Navigation Graph Summary');
       print('------------------------');
       print('Screens : ${analysisResult.screens.length}');
-      print('Routes : 37');
-      print('Entry Screens : 1');
-      print('Leaf Screens : 11');
-      print('Max Navigation Depth : 6\n');
+      print('Navigation edges : ${health.navigationEdges}');
+      print('Source screens : ${health.navigationSources}');
+      print('Target screens : ${health.navigationTargets}\n');
 
       print('Most Referenced Classes (Architectural Hubs)');
       print('-------------------------------------------');
@@ -373,33 +372,14 @@ class AnalysisModule implements PipelineModule {
       print('Circular Dependency Detection');
       print('-----------------------------');
       if (health.circularDependencies.isEmpty) {
-        print('Status : None (Clean Hierarchical DAG)\n');
+        print('Cycles found : 0\n');
       } else {
+        print('Cycles found : ${health.circularDependencies.length}');
         for (var circ in health.circularDependencies) {
           print('⚠ $circ');
         }
         print('');
       }
-
-      print('God Class & High Risk Detection');
-      print('-------------------------------');
-      for (var god in health.godClasses) {
-        print('Class : ${god['class']}');
-        print('Variables : ${god['variables']}');
-        print('Complexity : ${god['complexity']}');
-        print('Status : ${god['status']}\n');
-      }
-
-      print('Architecture Health');
-      print('===================');
-      print('Controllers : 12');
-      print('Repositories : 6');
-      print('Services : 2');
-      print('Reactive Density : 3.65%');
-      print('Mutable State : 70.8%');
-      print('Navigation Coupling : ${health.navigationCoupling}');
-      print('Dependency Coupling : ${health.dependencyCoupling}');
-      print('Overall Health : ${health.overallHealth}\n');
     }
 
     print('AnalysisResult created successfully.');

@@ -1,96 +1,101 @@
 import '../models/architecture_health_model.dart';
+import '../models/dependency_edge.dart';
+import '../models/navigation_edge.dart';
 
 class ArchitectureHealthAnalyzer {
-  const ArchitectureHealthAnalyzer();
+  const ArchitectureHealthAnalyzer({this.topReferencedLimit = 5});
+
+  final int topReferencedLimit;
 
   ArchitectureHealthModel analyse({
     required List<dynamic> dependencies,
-    required List<dynamic> widgets,
-    required List<dynamic> screens,
     required List<dynamic> navigation,
-    required List<dynamic> states,
   }) {
-    // 1. Dependency Type Distribution computation
-    final Map<String, int> dependencyDistribution = {
-      'Field': 0,
-      'Object Creation': 0,
-      'GetX': 0,
-      'Model Composition': 0,
-      'Service': 0,
-      'Repository': 0,
+    final edges = dependencies.whereType<DependencyEdge>().toList();
+    final navEdges = navigation.whereType<NavigationEdge>().toList();
+
+    final distribution = <String, int>{
+      for (final type in DependencyType.values) type.name: 0,
     };
+    final inDegree = <String, int>{};
+    final graph = <String, Set<String>>{};
 
-    final Map<String, int> referencedClassesCount = {};
+    for (final edge in edges) {
+      distribution[edge.type.name] = distribution[edge.type.name]! + 1;
+      inDegree[edge.to] = (inDegree[edge.to] ?? 0) + 1;
+      graph.putIfAbsent(edge.from, () => <String>{}).add(edge.to);
+      graph.putIfAbsent(edge.to, () => <String>{});
+    }
 
-    for (final dep in dependencies) {
-      final source = dep.toString();
-      if (source.contains('Repo')) {
-        dependencyDistribution['Repository'] =
-            (dependencyDistribution['Repository'] ?? 0) + 1;
-      } else if (source.contains('Service') || source.contains('Api')) {
-        dependencyDistribution['Service'] =
-            (dependencyDistribution['Service'] ?? 0) + 1;
-      } else if (source.contains('Get.')) {
-        dependencyDistribution['GetX'] =
-            (dependencyDistribution['GetX'] ?? 0) + 1;
-      } else {
-        dependencyDistribution['Field'] =
-            (dependencyDistribution['Field'] ?? 0) + 1;
+    final ranked = inDegree.entries.toList()
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        return byCount != 0 ? byCount : a.key.compareTo(b.key);
+      });
+
+    return ArchitectureHealthModel(
+      dependencyDistribution: distribution,
+      referencedClasses: {
+        for (final e in ranked.take(topReferencedLimit)) e.key: e.value,
+      },
+      circularDependencies: _findCycles(graph),
+      navigationEdges: navEdges.length,
+      navigationSources: navEdges.map((e) => e.fromScreen).toSet().length,
+      navigationTargets: navEdges.map((e) => e.toScreen).toSet().length,
+    );
+  }
+
+  /// Tarjan's strongly connected components; nodes are visited in sorted
+  /// order so the output is identical across runs.
+  List<String> _findCycles(Map<String, Set<String>> graph) {
+    var index = 0;
+    final indices = <String, int>{};
+    final lowLinks = <String, int>{};
+    final onStack = <String>{};
+    final stack = <String>[];
+    final cycles = <String>[];
+
+    void strongConnect(String node) {
+      indices[node] = index;
+      lowLinks[node] = index;
+      index++;
+      stack.add(node);
+      onStack.add(node);
+
+      final successors = graph[node]!.toList()..sort();
+      for (final next in successors) {
+        if (!indices.containsKey(next)) {
+          strongConnect(next);
+          lowLinks[node] = _min(lowLinks[node]!, lowLinks[next]!);
+        } else if (onStack.contains(next)) {
+          lowLinks[node] = _min(lowLinks[node]!, indices[next]!);
+        }
+      }
+
+      if (lowLinks[node] == indices[node]) {
+        final component = <String>[];
+        String member;
+        do {
+          member = stack.removeLast();
+          onStack.remove(member);
+          component.add(member);
+        } while (member != node);
+
+        final isSelfLoop = component.length == 1 && graph[node]!.contains(node);
+        if (component.length > 1 || isSelfLoop) {
+          component.sort();
+          cycles.add([...component, component.first].join(' → '));
+        }
       }
     }
 
-    // Default mock totals if list counts are empty to align with rich project stats
-    if (dependencyDistribution['Field'] == 0) {
-      dependencyDistribution['Field'] = 124;
-      dependencyDistribution['Object Creation'] = 72;
-      dependencyDistribution['GetX'] = 46;
-      dependencyDistribution['Model Composition'] = 38;
-      dependencyDistribution['Service'] = 8;
-      dependencyDistribution['Repository'] = 16;
+    for (final node in graph.keys.toList()..sort()) {
+      if (!indices.containsKey(node)) strongConnect(node);
     }
 
-    // 2. Referenced Classes Hub Identification
-    referencedClassesCount['AuthController'] = 48;
-    referencedClassesCount['HomeController'] = 42;
-    referencedClassesCount['MomentController'] = 35;
-    referencedClassesCount['ApiClient'] = 24;
-    referencedClassesCount['SplashRepo'] = 19;
-
-    // 3. Widget & Screen Complexity Mapping
-    final Map<String, int> widgetComplexityMap = {};
-    for (final screen in screens) {
-      widgetComplexityMap[screen.toString()] = 18;
-    }
-
-    // 4. Circular Dependencies detection
-    final List<String> circularDependencies =
-        []; // None detected in clean layer hierarchy
-
-    // 5. God Class Detection based on Complexity Score thresholds
-    final List<Map<String, dynamic>> godClasses = [
-      {
-        'class': 'HomeController',
-        'variables': 45,
-        'complexity': 58,
-        'status': '⚠ God Class (High Coupling)'
-      },
-      {
-        'class': 'AuthController',
-        'variables': 29,
-        'complexity': 74,
-        'status': '⚠ High Risk Complexity'
-      },
-    ];
-
-    return ArchitectureHealthModel(
-      dependencyDistribution: dependencyDistribution,
-      widgetComplexityMap: widgetComplexityMap,
-      referencedClasses: referencedClassesCount,
-      circularDependencies: circularDependencies,
-      godClasses: godClasses,
-      navigationCoupling: 'Low',
-      dependencyCoupling: 'Medium',
-      overallHealth: 'Good (Production Ready)',
-    );
+    cycles.sort();
+    return cycles;
   }
+
+  int _min(int a, int b) => a < b ? a : b;
 }

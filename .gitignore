@@ -1,0 +1,19 @@
+# Dart / pub
+.dart_tool/
+build/
+.packages
+
+# Secrets
+.env
+*.env
+secrets.yaml
+
+# Generated pipeline outputs (regenerated on every run)
+output/
+generated_tests/
+coverage/
+
+# IDE
+.idea/
+*.iml
+.vscode/

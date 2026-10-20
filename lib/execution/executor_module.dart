@@ -12,7 +12,7 @@ class ExecutorModule implements PipelineModule {
       : _executorService = executorService ?? TestExecutorService();
 
   @override
-  PipelineStage get stage => PipelineStage.analysis;
+  PipelineStage get stage => PipelineStage.execution;
 
   @override
   Future<void> execute(PipelineContext context) async {

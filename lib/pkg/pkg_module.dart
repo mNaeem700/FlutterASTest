@@ -7,7 +7,7 @@ import 'models/knowledge_graph.dart';
 
 class PkgModule implements PipelineModule {
   @override
-  PipelineStage get stage => PipelineStage.analysis;
+  PipelineStage get stage => PipelineStage.knowledgeGraph;
 
   @override
   Future<void> execute(PipelineContext context) async {

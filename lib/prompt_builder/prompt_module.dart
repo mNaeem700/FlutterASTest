@@ -12,8 +12,7 @@ class PromptModule implements PipelineModule {
       : _generator = generator ?? PromptContextGenerator();
 
   @override
-  // Use whatever stage enum you have next, or fallback to analysis if prompt isn't defined yet
-  get stage => PipelineStage.analysis;
+  get stage => PipelineStage.contextBuilder;
 
   @override
   Future<PipelineContext> execute(PipelineContext context) async {
@@ -23,15 +22,8 @@ class PromptModule implements PipelineModule {
       throw Exception('AnalysisResult missing from PipelineContext!');
     }
 
-    // Generate the contexts
     final promptContexts = _generator.generate(analysisResult);
-
-    // Save to context for the next phase (LLM)
     context.put<List<PromptContext>>(promptContexts);
-
-    // Inside PromptModule.execute():
-    final contexts = _generator.generate(analysisResult);
-    context.put<List<PromptContext>>(contexts); // 👇 Add this line!
 
     return context;
   }

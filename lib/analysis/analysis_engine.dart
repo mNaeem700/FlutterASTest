@@ -57,10 +57,7 @@ class AnalysisEngine {
 
     final health = _healthAnalyzer.analyse(
       dependencies: dependencies,
-      widgets: widgets,
-      screens: screens,
       navigation: navigation,
-      states: states,
     );
 
     return AnalysisResult(

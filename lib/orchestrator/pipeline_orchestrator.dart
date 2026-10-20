@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutterastest/llm/gemini_llm_service.dart';
 import 'package:logging/logging.dart';
 
 import 'package:flutterastest/execution/executor_module.dart';
@@ -129,10 +128,6 @@ class PipelineOrchestrator {
     _registry.register(PromptModule());
     _registry.register(PromptOptimizerModule());
     _registry.register(LlmModule());
-    _registry.register(LlmModule(
-        llmService: GeminiLlmService(
-            apiKey: 'AQ.Ab8RN6KuG491bEE05WjDbKpSviyyjW3xVFaRvJqNOMtLqsWeBA')));
-
     _registry.register(ExecutorModule());
   }
 }

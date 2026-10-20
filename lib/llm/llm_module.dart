@@ -4,21 +4,30 @@ import '../orchestrator/pipeline_context.dart';
 import '../orchestrator/pipeline_stage.dart';
 import 'llm_service.dart';
 import 'gemini_llm_service.dart';
-// 👇 Fixed the import statement here!
-import 'response_parser.dart' as response_parser;
+import 'response_parser.dart';
 
 class LlmModule implements PipelineModule {
+  static const apiKeyVariable = 'GEMINI_API_KEY';
+
   final LlmService _llmService;
 
   LlmModule({LlmService? llmService})
-      // 👇 Make sure you paste the key starting with AIza here!
-      : _llmService = llmService ??
-            GeminiLlmService(
-                apiKey:
-                    'AQ.Ab8RN6KuG491bEE05WjDbKpSviyyjW3xVFaRvJqNOMtLqsWeBA');
+      : _llmService =
+            llmService ?? GeminiLlmService(apiKey: _readApiKeyFromEnvironment());
+
+  static String _readApiKeyFromEnvironment() {
+    final key = Platform.environment[apiKeyVariable];
+    if (key == null || key.trim().isEmpty) {
+      throw StateError(
+        '$apiKeyVariable is not set. Set it in your shell before running '
+        'FlutterASTest; the key must never be written into source code.',
+      );
+    }
+    return key.trim();
+  }
 
   @override
-  PipelineStage get stage => PipelineStage.analysis;
+  PipelineStage get stage => PipelineStage.llm;
 
   @override
   Future<void> execute(PipelineContext context) async {
