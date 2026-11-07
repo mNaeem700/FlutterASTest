@@ -116,11 +116,11 @@ dart run bin/flutterastest.dart analyse <project> --reflect --ablation noCoverag
 # Repetitions, against LLM randomness
 dart run bin/flutterastest.dart analyse <project> --label rep2
 
-# Statistics between runs (Doc 16.10): output/comparison/comparison.{md,json}
-dart run bin/flutterastest.dart compare output/runs/baseline output/runs/pkg
+# Statistics between runs (Doc 16.10): <output>/comparison/comparison.{md,json}
+dart run bin/flutterastest.dart compare <output>/runs/baseline <output>/runs/pkg
 
 # RQ1 extraction accuracy against a manual annotation
-dart run bin/flutterastest.dart accuracy output/analysis/screen_contexts.json truth.json
+dart run bin/flutterastest.dart accuracy <output>/analysis/screen_contexts.json truth.json
 
 # Unit tests
 dart test
@@ -145,7 +145,9 @@ execution:
   flakyRetries: 2
 ```
 
-Each run writes to `output/runs/<run>/`:
+By default a run keeps everything in the analysed project: passing tests go to `test/flutterastest/` and reports to `.flutterastest/`, which ignores itself in git. Flutter is detected per project (its FVM SDK, otherwise `flutter` on `PATH`; `--flutter` overrides this), and FlutterASTest never installs or upgrades Flutter. For research runs, `--output <dir>` writes everything there and leaves the project unchanged.
+
+Each run writes to `<output>/runs/<run>/`:
 
 | File | Content |
 |---|---|
@@ -155,6 +157,6 @@ Each run writes to `output/runs/<run>/`:
 | `performance.json` | Time per stage, peak memory, throughput |
 | `run.log` | The run's console output |
 
-The PKG itself is exported to `output/analysis/pkg.jsonld` and `pkg.graphml`.
+The PKG itself is exported to `<output>/analysis/pkg.jsonld` and `pkg.graphml`.
 
-**Execution notes.** Generated tests are copied to `test/flutterastest_tmp/` in the target project for each run and deleted afterwards. A failing file is rerun to detect flaky tests, which stay counted as failed. Network access is limited by `flutter_test` itself, whose default `HttpClient` answers every request with HTTP 400; this is not an OS-level block, so code using raw sockets is not stopped.
+**Execution notes.** While running, each attempt is copied to `test/flutterastest_tmp/` in the target project and deleted afterwards. Only files whose tests all pass are installed into `test/flutterastest/`, and a file there that FlutterASTest did not generate is never overwritten. A failing file is rerun to detect flaky tests, which stay counted as failed. Network access is limited by `flutter_test` itself, whose default `HttpClient` answers every request with HTTP 400; this is not an OS-level block, so code using raw sockets is not stopped.

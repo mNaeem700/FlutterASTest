@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutterastest/experiment/experiment_config.dart';
+import 'package:path/path.dart' as p;
+
 import 'package:flutterastest/analysis/analysis_result.dart';
 import 'package:flutterastest/orchestrator/contracts/pipeline_module.dart';
 import 'package:flutterastest/orchestrator/pipeline_context.dart';
@@ -39,11 +42,13 @@ class PkgModule implements PipelineModule {
     problems.forEach(print);
 
     const serializer = GraphSerializer();
-    final file = File('output/analysis/pkg.jsonld');
+    final directory =
+        (context.get<ExperimentConfig>() ?? const ExperimentConfig()).analysisDirectory;
+    final file = File(p.join(directory, 'pkg.jsonld'));
     file.parent.createSync(recursive: true);
     await file.writeAsString(const JsonEncoder.withIndent('  ').convert(
         serializer.toJsonLd(graph, packageName: analysisResult.projectInfo.packageName)));
-    await File('output/analysis/pkg.graphml').writeAsString(serializer.toGraphMl(graph));
-    print('PKG exported to ${file.path} (JSON-LD) and output/analysis/pkg.graphml');
+    await File(p.join(directory, 'pkg.graphml')).writeAsString(serializer.toGraphMl(graph));
+    print('PKG exported to ${file.path} (JSON-LD) and pkg.graphml');
   }
 }

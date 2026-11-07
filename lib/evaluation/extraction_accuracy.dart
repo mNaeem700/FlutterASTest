@@ -68,7 +68,7 @@ class ExtractionAccuracy {
       String f(String key) => s[key]!.toStringAsFixed(3).padRight(11);
       print('${kind.padRight(15)}${f('precision')}${f('recall')}${f('f1')}');
     });
-    final out = File('output/analysis/extraction_accuracy.json')..parent.createSync(recursive: true);
+    final out = File('${File(predictedPath).parent.path}/extraction_accuracy.json');
     await out.writeAsString(const JsonEncoder.withIndent('  ').convert(result));
     print('Saved to ${out.path}');
   }

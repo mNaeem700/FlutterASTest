@@ -23,6 +23,9 @@ class CLIOptions {
   /// Positional arguments after the command.
   final List<String> arguments;
 
+  /// Flutter executable to use instead of the detected one.
+  final String? flutter;
+
   const CLIOptions({
     required this.command,
     required this.projectPath,
@@ -32,5 +35,6 @@ class CLIOptions {
     this.promptsOnly = false,
     this.experiment = const ExperimentConfig(),
     this.arguments = const [],
+    this.flutter,
   });
 }

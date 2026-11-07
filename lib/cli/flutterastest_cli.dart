@@ -92,6 +92,8 @@ Options:
 --version
 --verbose
 --prompts-only          analyse and write prompts, without LLM calls or test runs
+--output <dir>          results folder; the project stays unchanged (research runs)
+--flutter <path>        Flutter to use instead of the detected one (project FVM, then PATH)
 --config <file.yaml>    experiment settings; flags override it
 --mode <m>              context: pkg (default), baseline (raw screen file),
                         file (screen + imported files), repository (all of lib/)
@@ -103,8 +105,9 @@ Options:
 --max-iterations <n>    maximum repair iterations with --reflect (default 5)
 --test-timeout <s>      seconds before a flutter test run is killed (default 300)
 
-Results are written to output/runs/<mode>[-reflect]/. The LLM key is read
-from the GEMINI_API_KEY environment variable.
+By default reports go to <project>/.flutterastest/ and passing tests to
+<project>/test/flutterastest/. The LLM key is read from the GEMINI_API_KEY
+environment variable.
 ''');
   }
 }

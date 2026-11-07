@@ -53,6 +53,8 @@ class ExperimentConfig {
     this.minimumImprovement = 0.02,
     this.label,
     this.model,
+    this.outputRoot,
+    this.installTests = false,
   });
 
   /// Upper bound of repair iterations of the reflection loop (Doc 15.20.3).
@@ -86,6 +88,20 @@ class ExperimentConfig {
   /// LLM model id; null uses the service's default.
   final String? model;
 
+  /// Where results go; null means `.flutterastest/` in the target project.
+  final String? outputRoot;
+
+  /// Copy passing tests into the target project's `test/flutterastest/`.
+  final bool installTests;
+
+  /// A developer's run keeps everything in their project. With an explicit
+  /// output folder (research runs) the target project stays unchanged.
+  ExperimentConfig resolvedFor(String projectPath) => outputRoot != null
+      ? this
+      : copyWith(outputRoot: p.join(projectPath, '.flutterastest'), installTests: true);
+
+  String get analysisDirectory => p.join(outputRoot ?? 'output', 'analysis');
+
   /// `pkg`, `baseline-reflect`, `pkg-reflect-noCoverageGuidance-rep2`, ...
   String get runName => [
         mode.name,
@@ -94,7 +110,7 @@ class ExperimentConfig {
         if (label != null) label!,
       ].join('-');
 
-  String get runDirectory => p.join('output', 'runs', runName);
+  String get runDirectory => p.join(outputRoot ?? 'output', 'runs', runName);
 
   String get contextTitle => switch (mode) {
         ContextMode.pkg => 'Screen context (from the Program Knowledge Graph)',
@@ -115,6 +131,8 @@ class ExperimentConfig {
     int? flakyRetries,
     String? label,
     String? model,
+    String? outputRoot,
+    bool? installTests,
   }) =>
       ExperimentConfig(
         mode: mode ?? this.mode,
@@ -128,6 +146,8 @@ class ExperimentConfig {
         minimumImprovement: minimumImprovement,
         label: label ?? this.label,
         model: model ?? this.model,
+        outputRoot: outputRoot ?? this.outputRoot,
+        installTests: installTests ?? this.installTests,
       );
 
   /// Reads the YAML configuration file of Doc 17.10. Missing keys keep their
@@ -167,5 +187,6 @@ class ExperimentConfig {
         'targetLineCoverage': targetLineCoverage,
         'minimumImprovement': minimumImprovement,
         'label': label,
+        'installTests': installTests,
       };
 }

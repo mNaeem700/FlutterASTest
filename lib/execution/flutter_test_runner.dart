@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'flutter_command.dart';
 import 'json_reporter_parser.dart';
 import 'lcov.dart';
 import 'models/test_run.dart';
@@ -17,14 +18,14 @@ import 'models/test_run.dart';
 /// outside the project.
 class FlutterTestRunner {
   FlutterTestRunner({
-    this.flutterExecutable = 'flutter',
+    this.flutter = const FlutterCommand('flutter', source: 'PATH'),
     JsonReporterParser parser = const JsonReporterParser(),
   }) : _parser = parser;
 
   static const tempDirectoryName = 'flutterastest_tmp';
   static const _createdMarker = '.flutterastest_created';
 
-  final String flutterExecutable;
+  final FlutterCommand flutter;
   final JsonReporterParser _parser;
 
   static Directory tempDirectory(String projectPath) =>
@@ -109,8 +110,7 @@ void main() {
 
     final stopwatch = Stopwatch()..start();
     try {
-      final process = await Process.start(
-        flutterExecutable,
+      final process = await flutter.start(
         [
           'test',
           p.relative(testFile.path, from: projectPath),
@@ -123,7 +123,6 @@ void main() {
           lcov.absolute.path,
         ],
         workingDirectory: projectPath,
-        runInShell: true,
       );
 
       final stdoutText = process.stdout.transform(utf8.decoder).join();

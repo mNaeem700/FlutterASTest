@@ -17,6 +17,7 @@ class CLIRunner {
           verbose: options.verbose,
           promptsOnly: options.promptsOnly,
           config: options.experiment,
+          flutter: options.flutter,
         );
 
         break;

@@ -184,7 +184,10 @@ class RunComparison {
           parseCsv((await file.readAsString()).replaceAll('\r\n', '\n'));
     }
     final comparison = compare(runs);
-    final outDir = Directory(p.join('output', 'comparison'))..createSync(recursive: true);
+    // Next to the runs: <root>/runs/<run> gives <root>/comparison.
+    final outDir = Directory(
+        p.join(p.dirname(p.dirname(p.normalize(p.absolute(runDirectories.first)))), 'comparison'))
+      ..createSync(recursive: true);
     final markdown = toMarkdown(comparison);
     await File(p.join(outDir.path, 'comparison.json'))
         .writeAsString(const JsonEncoder.withIndent('  ').convert(comparison));

@@ -52,7 +52,9 @@ class CommandParser {
       ..addOption('ablation', allowed: [for (final a in Ablation.values) a.name])
       ..addOption('label')
       ..addOption('model')
-      ..addOption('token-budget');
+      ..addOption('token-budget')
+      ..addOption('output')
+      ..addOption('flutter');
 
     final ArgResults result;
     try {
@@ -76,6 +78,7 @@ class CommandParser {
       version: result['version'],
       promptsOnly: result['prompts-only'],
       arguments: result.rest.skip(1).toList(),
+      flutter: result['flutter'] as String?,
       experiment: _experiment(result),
     );
   }
@@ -99,6 +102,9 @@ class CommandParser {
           : null,
       label: result['label'] as String?,
       model: result['model'] as String?,
+      outputRoot: result['output'] == null
+          ? null
+          : p.normalize(p.absolute(result['output'] as String)),
       tokenBudget: result.wasParsed('token-budget') ? _positiveInt(result, 'token-budget') : null,
     );
   }

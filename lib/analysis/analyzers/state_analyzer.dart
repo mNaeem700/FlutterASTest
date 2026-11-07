@@ -10,7 +10,7 @@ import '../models/state_mutation.dart';
 class StateAnalyzer {
   const StateAnalyzer();
 
-  List<StateModel> analyse(ParserResult parserResult, {String? projectPath}) {
+  List<StateModel> analyse(ParserResult parserResult, {String outputDirectory = 'output/analysis'}) {
     final Map<String, StateModel> uniqueStates = {};
 
     for (final unitResult in parserResult.resolvedUnits) {
@@ -24,16 +24,14 @@ class StateAnalyzer {
 
     final statesList = uniqueStates.values.toList();
 
-    _exportStateAnalysis(statesList);
+    _exportStateAnalysis(statesList, outputDirectory);
 
     return statesList;
   }
 
-  /// Writes metrics to FlutterASTest's own output folder; the analysed
-  /// project is never modified.
-  void _exportStateAnalysis(List<StateModel> states) {
+  void _exportStateAnalysis(List<StateModel> states, String directory) {
     try {
-      final outputDir = Directory('output/analysis')..createSync(recursive: true);
+      final outputDir = Directory(directory)..createSync(recursive: true);
       // 1. JSON Export
       final jsonMap = {
         'timestamp': DateTime.now().toIso8601String(),

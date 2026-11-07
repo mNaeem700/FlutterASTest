@@ -21,7 +21,10 @@ class DartFileFinder {
       'web',
       'macos',
       'windows',
-      'linux'
+      'linux',
+      // FlutterASTest's own generated tests are not part of the app.
+      'flutterastest',
+      'flutterastest_tmp',
     };
 
     // BFS (Breadth-First Search) approach taake excluded folders pehli fursat mein skip ho jayein

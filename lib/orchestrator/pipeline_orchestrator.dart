@@ -6,6 +6,8 @@ import 'package:logging/logging.dart';
 
 import 'package:flutterastest/evaluation/evaluation_module.dart';
 import 'package:flutterastest/execution/executor_module.dart';
+import 'package:flutterastest/execution/flutter_command.dart';
+import 'package:flutterastest/execution/flutter_test_runner.dart';
 import 'package:flutterastest/analysis/analysis_result.dart';
 import 'package:flutterastest/experiment/environment_info.dart';
 import 'package:flutterastest/experiment/experiment_config.dart';
@@ -50,10 +52,13 @@ class PipelineOrchestrator {
     required bool verbose,
     bool promptsOnly = false,
     ExperimentConfig config = const ExperimentConfig(),
+    String? flutter,
   }) {
+    final resolved = config.resolvedFor(projectPath);
+    final command = FlutterCommand.resolve(projectPath, override: flutter);
     final log = StringBuffer();
     return runZoned(
-      () => _run(projectPath, verbose, promptsOnly, config, log),
+      () => _run(projectPath, verbose, promptsOnly, resolved, log, command),
       zoneSpecification: ZoneSpecification(print: (self, parent, zone, line) {
         log.writeln(line);
         parent.print(zone, line);
@@ -62,10 +67,15 @@ class PipelineOrchestrator {
   }
 
   /// Writes the records of Doc 16.13 next to the run's other artifacts.
-  Future<void> _writeRecords(
-      PipelineContext context, ExperimentConfig config, StringBuffer log, Duration total) async {
+  Future<void> _writeRecords(PipelineContext context, ExperimentConfig config, StringBuffer log,
+      Duration total, FlutterCommand command) async {
     final directory = Directory(config.runDirectory);
     if (!directory.existsSync()) return;
+    // The folder holds generated code and reports, not project source.
+    final root = config.outputRoot;
+    if (config.installTests && root != null) {
+      await File(p.join(root, '.gitignore')).writeAsString('*\n');
+    }
     const encoder = JsonEncoder.withIndent('  ');
     final analysis = context.get<AnalysisResult>();
     final graph = context.get<KnowledgeGraph>();
@@ -73,7 +83,7 @@ class PipelineOrchestrator {
 
     await File(p.join(directory.path, 'run.log')).writeAsString(log.toString());
     await File(p.join(directory.path, 'environment.json')).writeAsString(encoder.convert({
-      ...await const EnvironmentInfo().collect(projectPath: context.projectPath),
+      ...await const EnvironmentInfo().collect(projectPath: context.projectPath, command: command),
       'configuration': config.toJson(),
     }));
     await File(p.join(directory.path, 'performance.json')).writeAsString(encoder.convert({
@@ -92,7 +102,7 @@ class PipelineOrchestrator {
   }
 
   Future<PipelineResult> _run(String projectPath, bool verbose, bool promptsOnly,
-      ExperimentConfig config, StringBuffer log) async {
+      ExperimentConfig config, StringBuffer log, FlutterCommand command) async {
     final stopwatch = Stopwatch()..start();
 
     final context = PipelineContext(
@@ -105,13 +115,15 @@ class PipelineOrchestrator {
     _logger.info('FlutterASTest');
     _logger.info('========================================');
     _logger.info('Project : $projectPath');
+    _logger.info('Flutter : $command');
+    _logger.info('Output  : ${config.outputRoot}');
     _logger.info('Mode    : ${config.mode.name}'
         '${config.reflect ? ' + reflection (max ${config.maxIterations} iterations)' : ''}'
         '${promptsOnly ? ' (prompts only)' : ''}');
     _logger.info('Verbose : $verbose');
     _logger.info('');
 
-    _registerModules(promptsOnly: promptsOnly, config: config);
+    _registerModules(promptsOnly: promptsOnly, config: config, command: command);
 
     try {
       for (final module in _registry.modules) {
@@ -124,7 +136,7 @@ class PipelineOrchestrator {
       stopwatch.stop();
 
       context.metrics.totalExecutionTime = stopwatch.elapsed;
-      await _writeRecords(context, config, log, stopwatch.elapsed);
+      await _writeRecords(context, config, log, stopwatch.elapsed, command);
 
       _logger.info('');
       _logger.info('Pipeline completed successfully.');
@@ -137,7 +149,7 @@ class PipelineOrchestrator {
         metrics: context.metrics,
       );
     } on PipelineException {
-      await _writeRecords(context, config, log, stopwatch.elapsed);
+      await _writeRecords(context, config, log, stopwatch.elapsed, command);
       rethrow;
     } catch (e) {
       throw PipelineException(
@@ -191,7 +203,11 @@ class PipelineOrchestrator {
     }
   }
 
-  void _registerModules({required bool promptsOnly, required ExperimentConfig config}) {
+  void _registerModules({
+    required bool promptsOnly,
+    required ExperimentConfig config,
+    required FlutterCommand command,
+  }) {
     _registry.register(ParserModule());
     _registry.register(const AnalysisModule());
     _registry.register(PkgModule());
@@ -204,9 +220,10 @@ class PipelineOrchestrator {
             ? GeminiLlmService(apiKey: LlmModule.readApiKeyFromEnvironment())
             : GeminiLlmService(
                 apiKey: LlmModule.readApiKeyFromEnvironment(), model: config.model!));
-    _registry.register(PreflightModule());
+    final runner = FlutterTestRunner(flutter: command);
+    _registry.register(PreflightModule(runner: runner));
     _registry.register(LlmModule(llmService: llm, requestInterval: requestInterval));
-    _registry.register(ExecutorModule());
+    _registry.register(ExecutorModule(runner: runner));
     if (config.reflect) {
       _registry.register(ReflectionModule(llmService: llm, requestInterval: requestInterval));
     }

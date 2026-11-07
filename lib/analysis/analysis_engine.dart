@@ -47,7 +47,8 @@ class AnalysisEngine {
         _screenContextAnalyzer = screenContextAnalyzer,
         _healthAnalyzer = healthAnalyzer;
 
-  AnalysisResult analyse(ParserResult parserResult, {required String projectPath}) {
+  AnalysisResult analyse(ParserResult parserResult,
+      {required String projectPath, String outputDirectory = 'output/analysis'}) {
     final index = ProjectIndex.build(
       [
         for (final unit in parserResult.resolvedUnits)
@@ -76,7 +77,7 @@ class AnalysisEngine {
       hierarchy: _hierarchyAnalyzer.analyse(index),
       navigation: navigation,
       dependencies: dependencies,
-      states: _stateAnalyzer.analyse(parserResult),
+      states: _stateAnalyzer.analyse(parserResult, outputDirectory: outputDirectory),
       callbacks: _callbackAnalyzer.analyse(index),
       properties: _propertyAnalyzer.analyse(parserResult),
       screenContexts: _screenContextAnalyzer.analyse(index, screens),

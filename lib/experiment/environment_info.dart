@@ -1,13 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
+import '../execution/flutter_command.dart';
+
 /// The reproducibility record of Doc 16.13: tool and target commits, SDK
 /// versions, operating system, CPU and RAM.
 class EnvironmentInfo {
   const EnvironmentInfo();
 
-  Future<Map<String, dynamic>> collect({required String projectPath}) async {
-    final flutter = await _run('flutter', ['--version', '--machine']);
+  Future<Map<String, dynamic>> collect({
+    required String projectPath,
+    required FlutterCommand command,
+  }) async {
+    final toolDirectory = p.dirname(Platform.script.toFilePath());
+    final flutter =
+        await _run(command.executable, [...command.prefix, '--version', '--machine']);
     Map<String, dynamic>? versions;
     if (flutter != null) {
       final start = flutter.indexOf('{');
@@ -20,9 +29,10 @@ class EnvironmentInfo {
       }
     }
     return {
-      'toolCommit': await _run('git', ['rev-parse', 'HEAD']),
-      'toolHasUncommittedChanges': (await _run('git', ['status', '--porcelain']))?.isNotEmpty,
+      'toolCommit': await _run('git', ['-C', toolDirectory, 'rev-parse', 'HEAD']),
+      'toolHasUncommittedChanges': (await _run('git', ['-C', toolDirectory, 'status', '--porcelain']))?.isNotEmpty,
       'targetCommit': await _run('git', ['-C', projectPath, 'rev-parse', 'HEAD']),
+      'flutterSource': command.toString(),
       'flutterVersion': versions?['frameworkVersion'],
       'flutterRevision': versions?['frameworkRevision'],
       'dartVersion': versions?['dartSdkVersion'],

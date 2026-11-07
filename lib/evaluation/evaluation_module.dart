@@ -4,6 +4,7 @@ import 'dart:io';
 import '../analysis/analysis_result.dart';
 import '../execution/lcov.dart';
 import '../execution/models/test_run.dart';
+import '../execution/test_installer.dart';
 import '../experiment/experiment_config.dart';
 import '../experiment/models/screen_outcome.dart';
 import '../experiment/run_artifacts.dart';
@@ -44,6 +45,10 @@ class EvaluationModule implements PipelineModule {
     final metrics =
         RunMetrics.compute(outcomes, mergedCoverage: LcovReport.merge(reports).total);
 
+    final installed = config.installTests
+        ? const TestInstaller().install(context.projectPath, outcomes)
+        : const <String>[];
+
     final artifacts = RunArtifacts(config);
     final json = {
       'meta': {
@@ -57,6 +62,7 @@ class EvaluationModule implements PipelineModule {
         ...config.toJson(),
       },
       'summary': metrics.toJson(),
+      'installedTests': installed,
       'screens': [for (final outcome in outcomes) _screenJson(outcome)],
     };
     await File(artifacts.resultsJson)
@@ -64,6 +70,10 @@ class EvaluationModule implements PipelineModule {
     await File(artifacts.resultsCsv).writeAsString(toCsv(outcomes));
 
     _print(config, metrics);
+    if (config.installTests) {
+      print('Installed ${installed.length} passing test files into test/${TestInstaller.directoryName}/; '
+          '${outcomes.length - installed.length} others stay in the run reports.');
+    }
     print('Results: ${artifacts.resultsJson}');
     print('         ${artifacts.resultsCsv}\n');
   }

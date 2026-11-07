@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
+import '../experiment/experiment_config.dart';
+
 import 'package:flutterastest/analysis/models/screen_context_model.dart';
 import 'package:flutterastest/analysis/models/screen_model.dart';
 import 'package:flutterastest/orchestrator/pipeline_context.dart';
@@ -22,6 +26,8 @@ class AnalysisModule implements PipelineModule {
   @override
   // 👇 FIXED: Changed return type from Future<PipelineContext> to Future<void>
   Future<void> execute(PipelineContext context) async {
+    final analysisDirectory =
+        (context.get<ExperimentConfig>() ?? const ExperimentConfig()).analysisDirectory;
     print('\nExecuting analysis...\n');
     print('Analysis Module');
     print('----------------');
@@ -32,7 +38,8 @@ class AnalysisModule implements PipelineModule {
     }
 
     final analysisResult =
-        _engine.analyse(parserResult, projectPath: context.projectPath);
+        _engine.analyse(parserResult,
+            projectPath: context.projectPath, outputDirectory: analysisDirectory);
 
     final info = analysisResult.projectInfo;
     print('Package : ${info.packageName}');
@@ -399,7 +406,7 @@ class AnalysisModule implements PipelineModule {
     }
 
     _printScreenContexts(analysisResult.screenContexts);
-    _exportScreenContexts(analysisResult);
+    _exportScreenContexts(analysisResult, analysisDirectory);
 
     print('AnalysisResult created successfully.');
     context.put<AnalysisResult>(analysisResult);
@@ -424,8 +431,8 @@ class AnalysisModule implements PipelineModule {
     print('');
   }
 
-  void _exportScreenContexts(AnalysisResult result) {
-    final file = File('output/analysis/screen_contexts.json');
+  void _exportScreenContexts(AnalysisResult result, String directory) {
+    final file = File(p.join(directory, 'screen_contexts.json'));
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
       'project': result.projectInfo.toJson(),
