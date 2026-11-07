@@ -20,6 +20,16 @@ bool _hasTerminal() {
   }
 }
 
+/// A line of input, or null when there is no usable input. On Windows a
+/// redirected input can report a terminal and only fail when read.
+String? _readLine() {
+  try {
+    return stdin.readLineSync()?.trim();
+  } on Exception {
+    return null;
+  }
+}
+
 /// Asks once before a cloud provider receives code, and remembers the answer.
 /// A local model never needs this: nothing leaves the machine.
 class CloudConsent {
@@ -27,17 +37,21 @@ class CloudConsent {
 
   void ensure(String provider, {required bool accepted, required UserConfig user}) {
     if (provider == 'local' || accepted || user.cloudConsent(provider)) return;
-    if (!_hasTerminal()) {
-      throw CLIException(
-        'Provider "$provider" sends your code to a cloud service. Pass --accept-cloud to '
-        'agree, or use a local model with --provider local.',
-        ExitCodes.invalidArguments,
-      );
-    }
+    final noInput = CLIException(
+      'Provider "$provider" sends your code to a cloud service. Pass --accept-cloud to '
+      'agree, or use a local model with --provider local.',
+      ExitCodes.invalidArguments,
+    );
+    if (!_hasTerminal()) throw noInput;
     stdout.write('\nProvider "$provider" sends parts of your source code to a cloud service, '
         'under that service\'s terms.\nA local model keeps your code on this machine '
         '(--provider local).\nContinue with "$provider"? [y/N] ');
-    final answer = stdin.readLineSync()?.trim().toLowerCase();
+    final line = _readLine();
+    if (line == null) {
+      stdout.writeln();
+      throw noInput;
+    }
+    final answer = line.toLowerCase();
     if (answer != 'y' && answer != 'yes') {
       throw const CLIException('Cancelled. Nothing was sent.', ExitCodes.invalidArguments);
     }
@@ -84,10 +98,14 @@ class ConfigCommand {
 
   static String readSecret(String prompt) {
     stdout.write(prompt);
-    if (!_hasTerminal()) return stdin.readLineSync()?.trim() ?? '';
-    stdin.echoMode = false;
+    if (!_hasTerminal()) return _readLine() ?? '';
     try {
-      return stdin.readLineSync()?.trim() ?? '';
+      stdin.echoMode = false;
+    } on Exception {
+      return _readLine() ?? '';
+    }
+    try {
+      return _readLine() ?? '';
     } finally {
       stdin.echoMode = true;
       stdout.writeln();
@@ -203,12 +221,12 @@ class InitCommand {
         '2. gemini  Google Gemini with your own API key. Code is sent to Google.\n'
         '3. openai  An OpenAI-compatible service with your own key. Code is sent to it.\n');
     stdout.write('Choose [1]: ');
-    final choice = stdin.readLineSync()?.trim() ?? '';
+    final choice = _readLine() ?? '';
     final provider = switch (choice) { '2' => 'gemini', '3' => 'openai', _ => 'local' };
     user['provider'] = provider;
 
     stdout.write('Model name${provider == 'local' ? ' (for example from "ollama list")' : ' (empty for default)'}: ');
-    final model = stdin.readLineSync()?.trim() ?? '';
+    final model = _readLine() ?? '';
     user['model'] = model.isEmpty ? null : model;
 
     if (provider != 'local') {
