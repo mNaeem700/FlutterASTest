@@ -31,6 +31,7 @@ All of these can now be set (`--temperature`, `--top-p`, `--seed`, `--max-output
 | Network isolation | Open review item (Doc 14) | `flutter_test`'s default HTTP behaviour, no OS-level block | Stated as a threat to validity |
 | Confidence score | Doc 15.17.4, undefined | Share of the run's failures the primary cause accounts for, measured rather than predicted | The specification gives no formula |
 | CPU usage | Doc 14.18.5, Doc 16.9 | CPU of the tool's own process; `flutter test` children appear as execution time | Per-child CPU is not portable |
+| Hidden errors | Not specified | A test using try/catch or an ignored `takeException` does not count as honestly passing | Found in the first real run, where the model hid a real bug in order to pass |
 | Flaky tests | Open review item (Doc 14) | Up to 2 reruns of failing files; flaky tests stay failed | Does not inflate results |
 
 ## Not implemented

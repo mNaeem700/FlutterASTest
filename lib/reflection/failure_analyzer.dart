@@ -7,6 +7,7 @@ enum FailureCategory {
   compilation,
   timeout,
   noTests,
+  appBug,
   finderNotFound,
   pumpAndSettleTimeout,
   missingDependency,
@@ -47,6 +48,9 @@ class FailureAnalysis {
 
   bool get hasFailures => categories.isNotEmpty;
 
+  /// The screen itself is wrong, so changing the test cannot honestly help.
+  bool get isAppBug => primaryCause == FailureCategory.appBug.name;
+
   Map<String, dynamic> toJson() => {
         'categories': {for (final e in categories.entries) e.key.name: e.value},
         'primaryCause': primaryCause,
@@ -69,6 +73,8 @@ class FailureAnalyzer {
     FailureCategory.timeout:
         'Something waits forever. Do not use pumpAndSettle with endless animations or real timers.',
     FailureCategory.noTests: 'Add testWidgets cases; the file currently runs nothing.',
+    FailureCategory.appBug:
+        'Your screen has a layout bug: an Expanded or Flexible is not directly inside a Row, Column or Flex. Fix the screen; the test is right to fail.',
     FailureCategory.finderNotFound:
         'A finder matched nothing. Build finders from texts, icons and keys present in the context, and pump after each action.',
     FailureCategory.pumpAndSettleTimeout:
@@ -141,6 +147,7 @@ class FailureAnalyzer {
   }
 
   static FailureCategory _classifyRuntime(String text) {
+    if (text.contains('Incorrect use of ParentDataWidget')) return FailureCategory.appBug;
     if (text.contains('pumpAndSettle timed out')) return FailureCategory.pumpAndSettleTimeout;
     if (text.contains('"') && text.contains('not found') && text.contains('Get.put')) {
       return FailureCategory.missingDependency;

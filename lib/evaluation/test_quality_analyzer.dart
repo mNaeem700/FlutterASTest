@@ -26,6 +26,9 @@ class TestQuality {
   final double maintainabilityIndex;
 
   double get assertionsPerTest => tests == 0 ? 0 : assertions / tests;
+  /// The tests pass by ignoring errors, so a pass proves little.
+  bool get hidesErrors => (smells['hiddenError'] ?? 0) > 0;
+
   int get totalSmells => smells.values.fold(0, (a, b) => a + b);
 
   Map<String, dynamic> toJson() => {
@@ -69,6 +72,7 @@ class TestQualityAnalyzer {
       if (inspector.sleeps) smell('sleepyTest');
       if (inspector.conditional) smell('conditionalLogic');
       if (inspector.prints) smell('printStatement');
+      if (inspector.hidesErrors) smell('hiddenError');
       if (inspector.assertions >= _rouletteThreshold) smell('assertionRoulette');
       if (!bodies.add(body.toSource())) smell('duplicateTest');
     }
@@ -125,6 +129,7 @@ class _BodyInspector extends RecursiveAstVisitor<void> {
   bool sleeps = false;
   bool conditional = false;
   bool prints = false;
+  bool hidesErrors = false;
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
@@ -133,7 +138,20 @@ class _BodyInspector extends RecursiveAstVisitor<void> {
     if (name == 'expect' || name == 'expectLater') assertions++;
     if (name == 'sleep' || (receiver == 'Future' && name == 'delayed')) sleeps = true;
     if (name == 'print' || name == 'debugPrint') prints = true;
+    // Asserting on the exception is honest; only ignoring it hides a failure.
+    if (name == 'takeException' && !_isAsserted(node)) hidesErrors = true;
     super.visitMethodInvocation(node);
+  }
+
+  static bool _isAsserted(AstNode node) {
+    final call = node.parent?.parent;
+    return call is MethodInvocation && call.methodName.name == 'expect';
+  }
+
+  @override
+  void visitTryStatement(TryStatement node) {
+    hidesErrors = true;
+    super.visitTryStatement(node);
   }
 
   @override

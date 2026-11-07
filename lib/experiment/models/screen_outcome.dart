@@ -22,7 +22,10 @@ class Attempt {
   /// Set when mutation testing ran on this attempt.
   MutationResult? mutation;
 
-  TestQuality get quality => const TestQualityAnalyzer().analyse(code);
+  late final TestQuality quality = const TestQualityAnalyzer().analyse(code);
+
+  /// Passing, without ignoring errors to get there.
+  bool get honestlyPassed => (run?.allPassed ?? false) && !quality.hidesErrors;
 
   Map<String, dynamic> toJson() => {
         'iteration': iteration,
@@ -58,10 +61,13 @@ class ScreenOutcome {
     Attempt? best;
     for (final attempt in attempts) {
       if (attempt.run == null) continue;
-      if (best == null || rank(attempt.run!) > rank(best.run!)) best = attempt;
+      if (best == null || _score(attempt) > _score(best)) best = attempt;
     }
     return best;
   }
+
+  static double _score(Attempt attempt) =>
+      rank(attempt.run!) - (attempt.quality.hidesErrors ? 5 : 0);
 
   /// Orders runs by outcome: passing beats failing beats not compiling; ties
   /// go to the pass rate, then line coverage.
@@ -72,6 +78,8 @@ class ScreenOutcome {
       (run.screenCoverage?.ratio ?? 0) * 0.5;
 
   TestRun? get finalRun => best?.run;
+
+  bool get honestlyPassed => best?.honestlyPassed ?? false;
 
   /// Number of reflection repairs that were made.
   int get repairs => attempts.isEmpty ? 0 : attempts.length - 1;

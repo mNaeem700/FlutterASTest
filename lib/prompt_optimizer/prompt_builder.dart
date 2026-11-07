@@ -6,7 +6,7 @@ import 'package:flutterastest/analysis/models/project_info_model.dart';
 class PromptBuilder {
   const PromptBuilder();
 
-  static const templateVersion = '1.0';
+  static const templateVersion = '1.1';
 
   /// A unit test for one class or a file's functions; no Flutter UI involved.
   String buildUnit({
@@ -36,6 +36,7 @@ Write one complete, compilable unit test file for `$targetName` of the Flutter a
 4. Test each public method's behaviour: normal input, edge cases and errors. Assert real results.
 5. Do not call real network, storage or Firebase services. Mocking libraries available: ${mocking.isEmpty ? 'none, so write small fakes by hand' : mocking.join(', ')}. If something cannot be tested without those services, skip it and explain why in a code comment.
 6. Keep tests deterministic: no real waiting.
+7. Never hide failures: no try/catch around test steps, and no `if` around assertions. A test that cannot pass honestly must fail.
 
 ## Allowed imports
 ${[for (final uri in allowed) "- `import '$uri';`"].join('\n')}
@@ -99,9 +100,10 @@ $context
       ..writeln('6. For navigation, call `pumpAndSettle` and assert the destination with `find.byType`.')
       ..writeln('7. Do not call real network, storage or Firebase services. If the screen cannot be built without them, '
           'test only what renders without them and explain why in a code comment.')
-      ..writeln('8. Keep tests deterministic: no real waiting; advance timers with `tester.pump(duration)`.');
+      ..writeln('8. Keep tests deterministic: no real waiting; advance timers with `tester.pump(duration)`.')
+      ..writeln('9. Never hide failures: no try/catch around test steps, no `tester.takeException()` to ignore errors, and no `if` around finders or assertions. If the screen itself throws, let the test fail so the bug is seen.');
     if (project.usesGetX) {
-      out.writeln('9. Register any controller the screen obtains with `Get.find` using `Get.put` before pumping, '
+      out.writeln('10. Register any controller the screen obtains with `Get.find` using `Get.put` before pumping, '
           'and call `Get.reset()` in `tearDown`.');
     }
 

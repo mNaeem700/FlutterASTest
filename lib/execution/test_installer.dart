@@ -6,7 +6,7 @@ import '../experiment/models/screen_outcome.dart';
 
 /// Puts finished tests into the developer's project at `test/flutterastest/`.
 ///
-/// Only files whose tests all passed are installed, so a generation never
+/// Only files whose tests all passed, without ignoring errors, are installed, so a generation never
 /// turns the developer's test suite red; the others stay in the run's reports.
 /// A file without [marker] is the developer's own and is never overwritten.
 class TestInstaller {
@@ -22,7 +22,7 @@ class TestInstaller {
 
     for (final outcome in outcomes) {
       final best = outcome.best;
-      if (best == null || !(best.run?.allPassed ?? false)) continue;
+      if (best == null || !best.honestlyPassed) continue;
       directory.createSync(recursive: true);
       final file = _target(directory.path, outcome.screenName);
       file.writeAsStringSync('$marker\n${best.code.trimRight()}\n');

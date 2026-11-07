@@ -17,6 +17,7 @@ class RepairPromptBuilder {
     FailureAnalysis? analysis,
     bool coverageGuided = false,
     Map<String, String> classImports = const {},
+    bool hidesErrors = false,
   }) {
     final out = StringBuffer()
       ..writeln(originalPrompt.trimRight())
@@ -38,6 +39,14 @@ class RepairPromptBuilder {
       for (final recommendation in analysis.recommendations) {
         out.writeln('- $recommendation');
       }
+    }
+
+    if (hidesErrors) {
+      out
+        ..writeln()
+        ..writeln('## Hidden errors')
+        ..writeln('The tests pass only by ignoring errors with try/catch or takeException. Remove that, '
+            'and make the tests pass honestly or fail.');
     }
 
     final imports = importsForMissingNames(run, classImports);

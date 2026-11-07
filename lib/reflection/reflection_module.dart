@@ -65,8 +65,13 @@ class ReflectionModule implements PipelineModule {
       final start = outcome.best;
       if (start == null) continue;
       start.analysis = _analyzer.analyse(start.run!);
-      if (goalReached(start.run!, config)) {
+      if (goalReached(start.run!, config) && !start.quality.hidesErrors) {
         outcome.stoppingReason = 'goal reached';
+        continue;
+      }
+      if (start.analysis!.isAppBug) {
+        outcome.stoppingReason = 'the screen has a bug';
+        print('${outcome.screenName}: ${start.run!.reason}');
         continue;
       }
       if (start.code.trim().isEmpty) {
@@ -94,6 +99,7 @@ class ReflectionModule implements PipelineModule {
           analysis: base.analysis,
           coverageGuided: config.coverageGuided,
           classImports: context.get<AnalysisResult>()?.classImports ?? const {},
+          hidesErrors: base.quality.hidesErrors,
         );
         final response = await llmService.generate(prompt);
         waitBeforeCall = !response.fromCache;
@@ -120,7 +126,11 @@ class ReflectionModule implements PipelineModule {
         attempt.analysis = _analyzer.analyse(repaired);
         print('  iteration $iteration: ${AttemptExecutor.describe(repaired)}');
 
-        if (goalReached(repaired, config)) {
+        if (attempt.analysis!.isAppBug) {
+          outcome.stoppingReason = 'the screen has a bug';
+          break;
+        }
+        if (goalReached(repaired, config) && !attempt.quality.hidesErrors) {
           outcome.stoppingReason = 'goal reached';
           break;
         }

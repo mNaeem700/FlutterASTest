@@ -173,13 +173,13 @@ class ResultsView {
     const isUnit = data.meta?.kind === 'unit';
     return data.screens.map((screen) => {
       const run = screen.final;
-      const passed = Boolean(run && run.compiled && !run.timedOut && run.failed === 0 && run.passed > 0);
+      const passed = Boolean(screen.honestlyPassed);
       const coverage = run?.screenCoverage?.percent;
       const item = new vscode.TreeItem(screen.screen);
       item.iconPath = new vscode.ThemeIcon(passed ? 'pass' : 'error');
       item.description = passed
         ? `${run.passed} tests${coverage === undefined ? '' : `, ${coverage}% lines`}`
-        : run?.reason ?? 'no test was generated';
+        : run?.reason ?? (run?.passed ? 'its tests only pass by ignoring errors' : 'no test was generated');
       item.tooltip = `${screen.screenFile}\n${run?.reason ?? ''}`;
       const files = testFiles(project, runDirectory, screen.screen, isUnit);
       const file = passed && fs.existsSync(files.installed) ? files.installed : files.reported;
@@ -245,7 +245,7 @@ function summarize(project) {
   const data = runDirectory && readResults(runDirectory);
   if (!data) return undefined;
   const total = data.screens.length;
-  const working = data.screens.filter((s) => s.final && s.final.compiled && s.final.failed === 0 && s.final.passed > 0).length;
+  const working = data.screens.filter((s) => s.honestlyPassed).length;
   const firstFailure = data.screens.find((s) => s.final?.reason)?.final.reason;
   return { total, working, firstFailure, installed: (data.installedTests ?? []).length };
 }

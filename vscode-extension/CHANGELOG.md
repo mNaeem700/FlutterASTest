@@ -9,6 +9,8 @@
 - Open any test from the Testing panel, and add a failing test to your project if you want it.
 - Better tests for GetX screens using `GetWidget`, and for screens whose controllers must be imported.
 - Fix a false "does not compile" when Windows kept a temporary folder locked.
+- Tests that pass only by hiding errors no longer count as working.
+- Layout bugs in your screen are reported as bugs in your app.
 
 ## 1.1.1 (pre-release)
 

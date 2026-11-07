@@ -2,6 +2,7 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:flutterastest/analysis/analyzers/unit_target_analyzer.dart';
 import 'package:flutterastest/cli/command_parser.dart';
 import 'package:flutterastest/evaluation/evaluation_module.dart';
+import 'package:flutterastest/evaluation/test_quality_analyzer.dart';
 import 'package:flutterastest/prompt_optimizer/prompt_builder.dart';
 import 'package:flutterastest/analysis/flutter_ast/route_table.dart';
 import 'package:flutterastest/context_builder/context_builder.dart';
@@ -286,6 +287,58 @@ void main() {
       expect(text, contains('[fail] Home: Found 0 widgets'));
       expect(text, contains('What to try'));
       expect(text, isNot(contains('Added to your project')));
+    });
+
+    test('tests that hide errors do not count, and an honest attempt beats them', () {
+      const passing = TestRun(compiled: true, durationMs: 1, cases: [
+        TestCaseResult(name: 't', status: TestCaseStatus.passed),
+      ]);
+      const failing = TestRun(compiled: true, durationMs: 1, cases: [
+        TestCaseResult(name: 't', status: TestCaseStatus.failed, message: 'Found 0 widgets'),
+      ]);
+      const response = LlmResponse(text: 'x', model: 'm', latencyMs: 0);
+      const hiding = "void main() { testWidgets('a', (t) async { try { await t.pump(); } catch (_) {} "
+          'expect(1, 1); }); }';
+      const honest = "void main() { testWidgets('a', (t) async { expect(1, 1); }); }";
+
+      final outcome = ScreenOutcome(screenName: 'S', screenFile: 'f', prompt: 'p')
+        ..attempts.add(Attempt(iteration: 0, generation: response, code: hiding)..run = passing);
+      expect(outcome.honestlyPassed, isFalse);
+      expect(EvaluationModule.friendlySummary([outcome], const [], 'r'), contains('[weak] S'));
+
+      outcome.attempts.add(Attempt(iteration: 1, generation: response, code: honest)..run = passing);
+      expect(outcome.best!.iteration, 1);
+      expect(outcome.honestlyPassed, isTrue);
+
+      expect(const TestQualityAnalyzer()
+          .analyse("void main() { testWidgets('a', (t) async { t.takeException(); }); }")
+          .hidesErrors, isTrue);
+      expect(const TestQualityAnalyzer()
+          .analyse("void main() { testWidgets('a', (t) async { expect(t.takeException(), isNull); }); }")
+          .hidesErrors, isFalse);
+      expect(failing.allPassed, isFalse);
+    });
+
+    test('a layout bug in the screen is reported as a bug in the app', () {
+      const run = TestRun(compiled: true, durationMs: 1, cases: [
+        TestCaseResult(
+          name: 't',
+          status: TestCaseStatus.failed,
+          message: 'Test failed.\nThe following assertion was thrown while applying parent data.:\n'
+              'Incorrect use of ParentDataWidget.\nThe offending Expanded is inside a Listener.',
+        ),
+      ]);
+      final analysis = const FailureAnalyzer().analyse(run);
+      expect(analysis.isAppBug, isTrue);
+      expect(run.reason, 'Incorrect use of ParentDataWidget.');
+      const response = LlmResponse(text: 'x', model: 'm', latencyMs: 0);
+      final outcome = ScreenOutcome(screenName: 'Home', screenFile: 'f', prompt: 'p')
+        ..attempts.add(Attempt(iteration: 0, generation: response, code: 'c')
+          ..run = run
+          ..analysis = analysis);
+      final text = EvaluationModule.friendlySummary([outcome], const [], 'r');
+      expect(text, contains('[bug]  Home: possible bug in your app'));
+      expect(text, contains('Fix the screen'));
     });
 
     test('unit tests target logic, not widgets', () {

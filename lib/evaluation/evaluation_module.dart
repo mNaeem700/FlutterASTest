@@ -117,6 +117,7 @@ class EvaluationModule implements PipelineModule {
         'screenFile': outcome.screenFile,
         'repairs': outcome.repairs,
         'bestIteration': outcome.best?.iteration,
+        'honestlyPassed': outcome.honestlyPassed,
         'stoppingReason': outcome.stoppingReason,
         'promptTokens': outcome.promptTokens,
         'outputTokens': outcome.outputTokens,
@@ -157,6 +158,7 @@ class EvaluationModule implements PipelineModule {
     'stopping_reason',
     'maintainability_index',
     'mutation_score_pct',
+    'hides_errors',
   ];
 
   static String toCsv(List<ScreenOutcome> outcomes) {
@@ -202,6 +204,7 @@ class EvaluationModule implements PipelineModule {
         outcome.stoppingReason ?? '',
         (quality?.maintainabilityIndex ?? 0).toStringAsFixed(2),
         outcome.best?.mutation == null ? '' : pct(outcome.best!.mutation!.score),
+        quality?.hidesErrors ?? false,
       ]);
     }
     return '${rows.map((row) => row.map(_csvCell).join(',')).join('\n')}\n';
@@ -238,21 +241,28 @@ class EvaluationModule implements PipelineModule {
 
   /// What happened and what to do next, in words a developer can act on.
   static String friendlySummary(List<ScreenOutcome> outcomes, List<String> installed, String runRoot) {
-    final passing = outcomes.where((o) => o.finalRun?.allPassed ?? false).length;
-    final tests = outcomes.fold<int>(
-        0, (sum, o) => sum + ((o.finalRun?.allPassed ?? false) ? o.finalRun!.passed : 0));
+    final passing = outcomes.where((o) => o.honestlyPassed).length;
+    final tests =
+        outcomes.fold<int>(0, (sum, o) => sum + (o.honestlyPassed ? o.finalRun!.passed : 0));
     final out = StringBuffer()
       ..writeln()
       ..writeln('Result: $passing of ${outcomes.length} have working tests ($tests tests).')
       ..writeln();
     for (final outcome in outcomes) {
       final run = outcome.finalRun;
-      if (run?.allPassed ?? false) {
+      final analysis = outcome.best?.analysis;
+      if (analysis?.isAppBug ?? false) {
+        out
+          ..writeln('[bug]  ${outcome.screenName}: possible bug in your app: ${run?.reason}')
+          ..writeln('       ${analysis!.recommendations.first}');
+      } else if ((run?.allPassed ?? false) && !outcome.honestlyPassed) {
+        out.writeln('[weak] ${outcome.screenName}: its tests pass only by ignoring errors, so they were not added.');
+      } else if (run?.allPassed ?? false) {
         final coverage = ((run!.screenCoverage?.ratio ?? 0) * 100).toStringAsFixed(0);
         out.writeln('[pass] ${outcome.screenName}: ${run.passed} tests, $coverage% line coverage');
       } else {
         out.writeln('[fail] ${outcome.screenName}: ${run?.reason ?? 'no test was generated'}');
-        final advice = outcome.best?.analysis?.recommendations;
+        final advice = analysis?.recommendations;
         if (advice != null && advice.isNotEmpty) out.writeln('       What to try: ${advice.first}');
       }
     }
