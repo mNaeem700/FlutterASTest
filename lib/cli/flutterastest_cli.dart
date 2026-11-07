@@ -25,7 +25,7 @@ class FlutterASTestCLI {
 
   Future<int> execute(List<String> arguments) async {
     try {
-      _configureLogging();
+      _configureLogging(arguments.contains('--verbose'));
 
       final options = _parser.parse(arguments);
 
@@ -43,25 +43,26 @@ class FlutterASTestCLI {
 
       await _runner.run(options);
 
-      return ExitCodes.success;
+      return exitCode;
     } on CLIException catch (e) {
       stderr.writeln(e.message);
       return e.exitCode;
     } catch (e, stackTrace) {
-      Logger.root.severe(
-        'Unhandled exception',
-        e,
-        stackTrace,
-      );
-
-      stderr.writeln(e);
-
+      stderr.writeln('Error: ${_message(e)}');
+      if (arguments.contains('--verbose')) {
+        stderr.writeln(stackTrace);
+      } else {
+        stderr.writeln('Run again with --verbose for details, or run: flutterastest doctor');
+      }
       return ExitCodes.unknownError;
     }
   }
 
-  void _configureLogging() {
-    Logger.root.level = Level.ALL;
+  static String _message(Object error) =>
+      '$error'.replaceFirst(RegExp(r'^(Bad state|Exception|PipelineException): '), '');
+
+  void _configureLogging(bool verbose) {
+    Logger.root.level = verbose ? Level.ALL : Level.WARNING;
 
     Logger.root.onRecord.listen((record) {
       stdout.writeln(
@@ -72,7 +73,7 @@ class FlutterASTestCLI {
 
   void _printVersion() {
     stdout.writeln(
-      'FlutterASTest v1.0.0',
+      'FlutterASTest 1.0.0',
     );
   }
 
@@ -82,7 +83,12 @@ FlutterASTest
 
 Usage:
 
-flutterastest analyse <project>
+flutterastest init                    first-time setup
+flutterastest doctor [project]        check Flutter, project and LLM setup
+flutterastest generate [project]      analyse the project, then write and run tests
+                                      (also: analyse; default project: this folder)
+flutterastest config list | get <k> | set <k> <v> | unset <k> |
+                     set-key <provider> | remove-key <provider>
 flutterastest batch <manifest.yaml>   all projects x setups x repetitions, resumable
 flutterastest compare <runDir> <runDir> [...]   statistics between runs
 flutterastest compare --batch-root <dir> <setup> <setup> [...]   across a batch
@@ -105,7 +111,9 @@ Options:
 --model <id>            LLM model id
 --token-budget <n>      context limit in estimated tokens (default 8000)
 --screen <name>         only this screen; repeat for more
---provider <p>          gemini (default) or openai (any OpenAI-compatible API)
+--provider <p>          local (default, code stays on this machine), gemini, or openai
+                        (any OpenAI-compatible API); cloud providers ask first
+--accept-cloud          agree to send code to the cloud provider, for scripts
 --temperature <t>, --top-p <p>, --seed <n>, --max-output-tokens <n>,
 --request-timeout <s>   LLM settings; unset values use the provider default
 --mutation              measure passing tests with mutation testing (slow)
@@ -115,8 +123,8 @@ Options:
 --test-timeout <s>      seconds before a flutter test run is killed (default 600)
 
 By default reports go to <project>/.flutterastest/ and passing tests to
-<project>/test/flutterastest/. The LLM key is read from the GEMINI_API_KEY
-environment variable.
+<project>/test/flutterastest/. Save your own key with: flutterastest config set-key <provider>
+Privacy: PRIVACY.md. Terms: TERMS.md.
 ''');
   }
 }

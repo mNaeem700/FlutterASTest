@@ -27,6 +27,7 @@ import 'package:flutterastest/mutation/mutation_module.dart';
 import 'package:flutterastest/reflection/reflection_module.dart';
 
 import 'contracts/pipeline_module.dart';
+import 'pipeline_stage.dart';
 import 'execution_trace.dart';
 import 'module_registry.dart';
 import 'pipeline_context.dart';
@@ -43,6 +44,26 @@ class PipelineOrchestrator {
 
   final Logger _logger = Logger('PipelineOrchestrator');
   Duration? _cpuAtStart;
+
+  /// Early stages print long analysis tables; they stay in run.log unless
+  /// --verbose is given.
+  bool _quietStage = false;
+
+  static const _quietStages = {
+    PipelineStage.parser,
+    PipelineStage.analysis,
+    PipelineStage.knowledgeGraph,
+    PipelineStage.contextBuilder,
+    PipelineStage.promptBuilder,
+  };
+
+  static const _stageTitles = {
+    PipelineStage.parser: 'Parsed the project',
+    PipelineStage.analysis: 'Analysed screens',
+    PipelineStage.knowledgeGraph: 'Built the knowledge graph',
+    PipelineStage.contextBuilder: 'Selected context',
+    PipelineStage.promptBuilder: 'Prepared prompts',
+  };
   final ModuleRegistry _registry;
 
   /// Injected LLM; when null, Gemini is used with the key from the environment.
@@ -65,7 +86,7 @@ class PipelineOrchestrator {
       () => _run(projectPath, verbose, promptsOnly, resolved, log, command),
       zoneSpecification: ZoneSpecification(print: (self, parent, zone, line) {
         log.writeln(line);
-        parent.print(zone, line);
+        if (verbose || !_quietStage) parent.print(zone, line);
       }),
     );
   }
@@ -177,6 +198,8 @@ class PipelineOrchestrator {
 
       _logger.info('');
       _logger.info('Pipeline completed successfully.');
+      print('\nDone in ${(stopwatch.elapsed.inMilliseconds / 1000).toStringAsFixed(1)} s. '
+          'Reports: ${config.runDirectory}');
       _logger.info(
         'Execution Time : ${context.metrics.totalExecutionTime.inMilliseconds} ms',
       );
@@ -205,10 +228,16 @@ class PipelineOrchestrator {
       'Executing ${module.stage.name}...',
     );
 
+    _quietStage = _quietStages.contains(module.stage);
     try {
       await module.execute(context);
 
       final finished = DateTime.now();
+      if (_quietStage && !context.verbose) {
+        _quietStage = false;
+        print('[ok] ${_stageTitles[module.stage]} '
+            '(${(finished.difference(started).inMilliseconds / 1000).toStringAsFixed(1)} s)');
+      }
 
       context.metrics.modulesExecuted++;
 
@@ -221,6 +250,7 @@ class PipelineOrchestrator {
         ),
       );
     } catch (e) {
+      _quietStage = false;
       final finished = DateTime.now();
 
       context.metrics.modulesFailed++;

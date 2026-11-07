@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import '../evaluation/extraction_accuracy.dart';
 import '../evaluation/run_comparison.dart';
 import '../experiment/batch_runner.dart';
 import '../orchestrator/pipeline_orchestrator.dart';
+import '../product/product_commands.dart';
+import '../product/user_config.dart';
 
 import 'models/cli_options.dart';
 
@@ -11,6 +15,10 @@ class CLIRunner {
   Future<void> run(CLIOptions options) async {
     switch (options.command) {
       case 'analyse':
+        if (!options.promptsOnly) {
+          const CloudConsent().ensure(options.experiment.provider,
+              accepted: options.acceptCloud, user: UserConfig.load());
+        }
         final orchestrator = PipelineOrchestrator();
 
         await orchestrator.start(
@@ -21,6 +29,18 @@ class CLIRunner {
           flutter: options.flutter,
         );
 
+        break;
+
+      case 'config':
+        const ConfigCommand().run(options.arguments, UserConfig.load());
+        break;
+
+      case 'doctor':
+        exitCode = await const Doctor().run(options.projectPath!, UserConfig.load());
+        break;
+
+      case 'init':
+        exitCode = await const InitCommand().run(options.projectPath!, UserConfig.load());
         break;
 
       case 'batch':

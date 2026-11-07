@@ -3,10 +3,14 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:flutterastest/cli/command_parser.dart';
+import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/llm/gemini_llm_service.dart';
+import 'package:flutterastest/llm/llm_factory.dart';
 import 'package:flutterastest/llm/llm_settings.dart';
 import 'package:flutterastest/llm/openai_llm_service.dart';
 import 'package:flutterastest/mutation/mutation_module.dart';
+import 'package:flutterastest/product/product_commands.dart';
+import 'package:flutterastest/product/user_config.dart';
 import 'package:flutterastest/mutation/mutator.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -120,6 +124,103 @@ class Other { bool b = x > 1; }
       expect(reply.text, 'code');
       expect(reply.promptTokens, 3);
       expect(OpenAiLlmService.parse('{"choices":[]}', model: 'm', latencyMs: 1).succeeded, isFalse);
+    });
+  });
+
+  group('product', () {
+    late Directory home;
+    setUp(() => home = Directory.systemTemp.createTempSync('flutterastest_home'));
+    tearDown(() => home.deleteSync(recursive: true));
+
+    test('user settings persist and API keys are masked', () {
+      final user = UserConfig.load(home: home.path)
+        ..['model'] = 'tiny'
+        ..setApiKey('gemini', 'abcd1234567890xy');
+      final again = UserConfig.load(home: home.path);
+      expect(again['model'], 'tiny');
+      expect(again.apiKey('gemini'), 'abcd1234567890xy');
+      expect(again.describe()['apiKey.gemini'], 'abcd****xy');
+      expect(user.describe().values.join(), isNot(contains('1234567890')));
+    });
+
+    test('the parser uses saved settings, and a flag overrides them', () {
+      final user = UserConfig.load(home: home.path)..['provider'] = 'gemini';
+      expect(CommandParser(user: user).parse(['generate']).experiment.provider, 'gemini');
+      expect(CommandParser(user: user).parse(['generate', '--provider', 'local']).experiment.provider,
+          'local');
+      expect(CommandParser(user: user).parse(['generate']).projectPath, p.normalize(p.absolute('.')));
+    });
+
+    test('local is the default and refuses non-local addresses', () {
+      expect(const ExperimentConfig().provider, 'local');
+      expect(isLoopback('http://localhost:11434/v1'), isTrue);
+      expect(isLoopback('http://127.0.0.1:1/v1'), isTrue);
+      expect(isLoopback('https://api.example.com/v1'), isFalse);
+      expect(isLoopback('http://localhost.example.com/v1'), isFalse);
+    });
+
+    test('local consent is never needed; a cloud provider needs agreement', () {
+      final user = UserConfig.load(home: home.path);
+      const consent = CloudConsent();
+      consent.ensure('local', accepted: false, user: user);
+      consent.ensure('gemini', accepted: true, user: user);
+      user.setCloudConsent('openai', true);
+      consent.ensure('openai', accepted: false, user: user);
+    });
+
+    group('with a local OpenAI-compatible server', () {
+      late HttpServer server;
+      late String baseUrl;
+      Map<String, dynamic>? received;
+
+      setUp(() async {
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        baseUrl = 'http://127.0.0.1:${server.port}/v1';
+        server.listen((request) async {
+          final body = await utf8.decoder.bind(request).join();
+          if (request.uri.path.endsWith('/models')) {
+            request.response.write(jsonEncode({
+              'data': [
+                {'id': 'tiny'},
+              ],
+            }));
+          } else {
+            received = jsonDecode(body) as Map<String, dynamic>;
+            request.response.write(jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': 'code'},
+                },
+              ],
+              'usage': {'prompt_tokens': 1, 'completion_tokens': 2},
+            }));
+          }
+          await request.response.close();
+        });
+      });
+      tearDown(() => server.close(force: true));
+
+      test('a real HTTP request carries the prompt and returns the reply', () async {
+        final reply = await OpenAiLlmService(apiKey: 'local', model: 'tiny', baseUrl: baseUrl)
+            .generate('hello');
+        expect(reply.text, 'code');
+        expect(reply.outputTokens, 2);
+        expect(received!['messages'][0]['content'], 'hello');
+      });
+
+      test('doctor finds the model, and reports a missing one', () async {
+        expect((await Doctor.checkLocalServer(baseUrl, 'tiny')).ok, isTrue);
+        final missing = await Doctor.checkLocalServer(baseUrl, 'other');
+        expect(missing.ok, isFalse);
+        expect(missing.fix, contains('ollama pull other'));
+        expect((await Doctor.checkLocalServer(baseUrl, null)).ok, isFalse);
+      });
+    });
+
+    test('doctor says so when no server is running', () async {
+      final check = await Doctor.checkLocalServer('http://127.0.0.1:9/v1', 'tiny');
+      expect(check.ok, isFalse);
+      expect(check.fix, contains('Ollama'));
     });
   });
 

@@ -36,9 +36,43 @@
       {
         "command": "flutterastest.setApiKey",
         "title": "FlutterASTest: Set API Key"
+      },
+      {
+        "command": "flutterastest.selectProvider",
+        "title": "FlutterASTest: Choose LLM Provider"
+      },
+      {
+        "command": "flutterastest.doctor",
+        "title": "FlutterASTest: Check Setup"
+      },
+      {
+        "command": "flutterastest.refreshResults",
+        "title": "FlutterASTest: Refresh Results",
+        "icon": "$(refresh)"
+      }
+    ],
+    "views": {
+      "test": [
+        {
+          "id": "flutterastest.results",
+          "name": "FlutterASTest"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "flutterastest.results",
+        "contents": "No results yet.\n[Generate Tests](command:flutterastest.generateProject)\n[Check Setup](command:flutterastest.doctor)\nBy default your code stays on this machine."
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "flutterastest.refreshResults",
+          "when": "view == flutterastest.results",
+          "group": "navigation"
+        }
+      ],
       "editor/context": [
         {
           "command": "flutterastest.generateFile",
@@ -57,9 +91,19 @@
         },
         "flutterastest.provider": {
           "type": "string",
-          "enum": ["gemini", "openai"],
-          "default": "gemini",
+          "enum": ["local", "gemini", "openai"],
+          "default": "local",
+          "enumDescriptions": [
+            "A model on this machine, such as Ollama. Your code stays here.",
+            "Google Gemini with your own key. Code is sent to Google.",
+            "An OpenAI-compatible service with your own key. Code is sent to it."
+          ],
           "description": "LLM provider."
+        },
+        "flutterastest.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model name. Required for the local provider (see 'ollama list')."
         },
         "flutterastest.reflect": {
           "type": "boolean",

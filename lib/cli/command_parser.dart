@@ -5,12 +5,15 @@ import 'package:path/path.dart' as p;
 
 import '../experiment/experiment_config.dart';
 import '../llm/llm_settings.dart';
+import '../product/user_config.dart';
 import 'cli_exception.dart';
 import 'exit_codes.dart';
 import 'models/cli_options.dart';
 
 class CommandParser {
-  CommandParser();
+  CommandParser({UserConfig? user}) : _user = user ?? UserConfig.load();
+
+  final UserConfig _user;
 
   CLIOptions parse(List<String> arguments) {
     final parser = ArgParser()
@@ -60,7 +63,8 @@ class CommandParser {
       ..addFlag('resume', negatable: false)
       ..addFlag('mutation', negatable: false)
       ..addOption('max-mutants')
-      ..addOption('provider', allowed: ['gemini', 'openai'])
+      ..addOption('provider', allowed: ['local', 'gemini', 'openai'])
+      ..addFlag('accept-cloud', negatable: false)
       ..addOption('temperature')
       ..addOption('top-p')
       ..addOption('seed')
@@ -76,12 +80,16 @@ class CommandParser {
     }
 
     final first = result.rest.isNotEmpty ? result.rest.first : '';
-    final command = first == 'analyze' ? 'analyse' : first;
+    final command = const {'analyze', 'generate'}.contains(first) ? 'analyse' : first;
 
     // The analyzer accepts only absolute, normalized paths, so `.`,
     // relative paths and forward slashes on Windows are normalized here.
-    final project =
-        result.rest.length > 1 ? p.normalize(p.absolute(result.rest[1])) : null;
+    // Without a path, the project is the current folder.
+    final project = result.rest.length > 1
+        ? p.normalize(p.absolute(result.rest[1]))
+        : (command == 'analyse' || command == 'doctor' || command == 'init'
+            ? p.normalize(p.absolute('.'))
+            : null);
 
     return CLIOptions(
       command: command,
@@ -93,12 +101,13 @@ class CommandParser {
       arguments: result.rest.skip(1).toList(),
       flutter: result['flutter'] as String?,
       batchRoot: result['batch-root'] as String?,
+      acceptCloud: result['accept-cloud'] as bool,
       experiment: _experiment(result),
     );
   }
 
   /// The YAML file, if any, overridden by flags given on the command line.
-  static ExperimentConfig _experiment(ArgResults result) {
+  ExperimentConfig _experiment(ArgResults result) {
     final path = result['config'] as String?;
     if (path != null && !File(path).existsSync()) {
       throw CLIException('Config file not found: $path', ExitCodes.invalidArguments);
@@ -118,7 +127,7 @@ class CommandParser {
       resume: result['resume'] as bool ? true : null,
       mutation: result['mutation'] as bool ? true : null,
       maxMutants: result.wasParsed('max-mutants') ? _positiveInt(result, 'max-mutants') : null,
-      provider: result['provider'] as String?,
+      provider: result['provider'] as String? ?? (path == null ? _user['provider'] : null),
       screens: result.wasParsed('screen') ? (result['screen'] as List<String>).toSet() : null,
       llm: LlmSettings(
         temperature: _number(result, 'temperature') ?? base.llm.temperature,

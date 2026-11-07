@@ -29,6 +29,9 @@ class CLIOptions {
   /// Batch folder for `compare`; arguments are then setup names.
   final String? batchRoot;
 
+  /// Agreement to send code to the chosen cloud provider.
+  final bool acceptCloud;
+
   const CLIOptions({
     required this.command,
     required this.projectPath,
@@ -40,5 +43,6 @@ class CLIOptions {
     this.arguments = const [],
     this.flutter,
     this.batchRoot,
+    this.acceptCloud = false,
   });
 }

@@ -29,7 +29,7 @@ FlutterASTest is built as a highly modular, extensible Dart library utilizing an
 *   **Parser Module:** Validates the Flutter project and extracts the AST using the official Dart analyzer.
 *   **Analysis Module:** Identifies semantic entities (Stateful/Stateless Widgets, Provider/Riverpod state, navigation flows).
 *   **Context & Prompt Builders:** Ranks semantic relevance and generates deterministic, template-driven LLM instructions.
-*   **LLM Engine:** A provider-agnostic execution gateway (OpenAI, Gemini, Anthropic, local vLLM) that handles asynchronous token streams.
+*   **LLM Engine:** A provider-agnostic execution gateway (local models through an OpenAI-compatible server, OpenAI, Gemini) that handles asynchronous token streams.
 *   **Test Execution & Reflection:** Executes `flutter test`, analyzes LCOV coverage data, and iteratively repairs failing tests via execution trace feedback.
 
 ## 🛠️ Installation & Usage
@@ -38,7 +38,7 @@ FlutterASTest is built as a highly modular, extensible Dart library utilizing an
 ### Prerequisites
 *   Flutter SDK (3.x)
 *   Dart SDK (3.x)
-*   An active LLM API Key (OpenAI, Anthropic, or Gemini)
+*   A local model server such as Ollama, or your own API key for Gemini or an OpenAI-compatible service
 
 ### Setup
 ```bash
@@ -90,7 +90,19 @@ Independent Software Engineering Researcher & Flutter Developer
 ## 📄 License & Open Source Commitment
 This project is licensed under the MIT License. FlutterASTest is committed to the open-source community; all core parsing algorithms, graph generation mechanics, and execution pipelines will remain free and open for public research and commercial adaptation.
 
+## 🔒 Privacy
+
+FlutterASTest runs on your machine, with no accounts and no telemetry. By default it uses a local model, so your code stays with you. A cloud provider is used only if you choose one, and the tool asks first. See [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md).
+
+```bash
+flutterastest init       # choose a provider and save your own key
+flutterastest doctor     # check that everything is ready
+flutterastest generate   # write and run tests for this project
+```
+
 ## 🔬 Running the Experiments
+
+Research runs on public apps name their provider, for example `--provider gemini --accept-cloud`.
 
 Requirements: the target project must already pass `flutter test` with the installed Flutter SDK; a preflight check stops the run otherwise. The LLM key is read from the `GEMINI_API_KEY` environment variable and must never be written into source code.
 

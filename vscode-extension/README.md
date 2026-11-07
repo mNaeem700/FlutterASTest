@@ -22,7 +22,11 @@ Generate and run Flutter widget tests from inside VS Code. The extension calls t
 | Build Prompts Only | Analysis and prompts, with no LLM calls and no key needed |
 | Open Latest Report | Opens the latest run's report in the browser |
 | Set API Key | Replaces the saved key |
+| Choose LLM Provider | Switch between a local model and a cloud provider (also from the status bar) |
+| Check Setup | Runs `flutterastest doctor` in a terminal |
 
-Passing tests go to `test/flutterastest/` and reports to `.flutterastest/`. Your project's Flutter is detected automatically, and the extension never installs or upgrades Flutter. The API key is kept in VS Code's secret storage.
+Results of the latest run appear in the Testing panel. Passing tests go to `test/flutterastest/` and reports to `.flutterastest/`. Your project's Flutter is detected automatically, and the extension never installs or upgrades Flutter.
 
-The generated code and your screen source are sent to the LLM provider you configure.
+## Privacy
+
+By default the extension uses a local model, so your code stays on your machine. Set the model in `flutterastest.model`. A cloud provider is used only if you choose one, and the extension asks first. Your API key stays in VS Code's secret storage. See the [privacy policy](../PRIVACY.md).

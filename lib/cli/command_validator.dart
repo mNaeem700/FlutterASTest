@@ -24,6 +24,11 @@ class CommandValidator {
         _validateAnalyse(options);
         break;
 
+      case 'config':
+      case 'doctor':
+      case 'init':
+        break;
+
       case 'batch':
         if (options.arguments.length != 1 || !File(options.arguments.first).existsSync()) {
           throw const CLIException(

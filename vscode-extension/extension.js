@@ -65,6 +65,105 @@ async function openReport() {
   await vscode.env.openExternal(vscode.Uri.file(report));
 }
 
+// Asks before code first goes to a cloud provider, and remembers the answer.
+async function cloudConsent(context, provider) {
+  const name = `flutterastest.cloudConsent.${provider}`;
+  if (context.globalState.get(name)) return true;
+  const choice = await vscode.window.showWarningMessage(
+    `The "${provider}" provider sends parts of your source code to a cloud service, under that service's terms. ` +
+      'A local model keeps your code on this machine.',
+    { modal: true },
+    'Send to Cloud',
+    'Choose Provider',
+  );
+  if (choice === 'Choose Provider') await selectProvider();
+  if (choice !== 'Send to Cloud') return false;
+  await context.globalState.update(name, true);
+  return true;
+}
+
+async function selectProvider() {
+  const items = [
+    { label: 'local', description: 'Your code stays on this machine (needs Ollama or similar)' },
+    { label: 'gemini', description: 'Google Gemini with your own key; code is sent to Google' },
+    { label: 'openai', description: 'OpenAI-compatible service with your own key; code is sent to it' },
+  ];
+  const picked = await vscode.window.showQuickPick(items, { title: 'FlutterASTest LLM provider' });
+  if (!picked) return;
+  await vscode.workspace
+    .getConfiguration('flutterastest')
+    .update('provider', picked.label, vscode.ConfigurationTarget.Global);
+  updateStatus();
+}
+
+function latestResults(project) {
+  const report = project && latestReport(project);
+  if (!report) return undefined;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(path.dirname(report), 'results.json'), 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+// Screens of the latest run, in the Testing panel.
+class ResultsView {
+  constructor() {
+    this.changed = new vscode.EventEmitter();
+    this.onDidChangeTreeData = this.changed.event;
+  }
+
+  refresh() {
+    this.changed.fire();
+  }
+
+  getTreeItem(item) {
+    return item;
+  }
+
+  getChildren() {
+    const results = latestResults(projectFolder());
+    if (!results) return [];
+    return results.screens.map((screen) => {
+      const run = screen.final;
+      const passed = run && run.compiled && run.failed === 0 && run.passed > 0;
+      const coverage = run?.screenCoverage?.percent;
+      const item = new vscode.TreeItem(screen.screen);
+      item.description = run
+        ? `${run.passed} passed, ${run.failed} failed${coverage === undefined ? '' : `, ${coverage}% lines`}`
+        : 'not run';
+      item.iconPath = new vscode.ThemeIcon(passed ? 'pass' : 'error');
+      item.tooltip = screen.screenFile;
+      const project = projectFolder();
+      if (project) {
+        item.command = {
+          command: 'vscode.open',
+          title: 'Open Screen',
+          arguments: [vscode.Uri.file(path.join(project, screen.screenFile))],
+        };
+      }
+      return item;
+    });
+  }
+}
+
+let status;
+let results;
+
+function updateStatus() {
+  status.text = `$(beaker) FlutterASTest: ${setting('provider')}`;
+  status.tooltip =
+    setting('provider') === 'local' ? 'Your code stays on this machine' : 'Code is sent to a cloud provider';
+  status.show();
+}
+
+function runDoctor() {
+  const project = projectFolder();
+  const terminal = vscode.window.createTerminal('FlutterASTest');
+  terminal.show();
+  terminal.sendText(`${quote(setting('executable'))} doctor${project ? ` ${quote(project)}` : ''}`);
+}
+
 async function run(context, { screens = [], promptsOnly = false } = {}) {
   if (running) {
     vscode.window.showWarningMessage('FlutterASTest is already running.');
@@ -78,6 +177,21 @@ async function run(context, { screens = [], promptsOnly = false } = {}) {
 
   const provider = setting('provider');
   const args = ['analyse', project, '--provider', provider];
+  const model = setting('model');
+  if (model) args.push('--model', model);
+  if (provider === 'local' && !model && !promptsOnly) {
+    const choice = await vscode.window.showErrorMessage(
+      'Choose a local model first (see "ollama list"), or choose another provider.',
+      'Open Settings',
+      'Choose Provider',
+    );
+    if (choice === 'Open Settings') {
+      await vscode.commands.executeCommand('workbench.action.openSettings', 'flutterastest.model');
+    } else if (choice === 'Choose Provider') {
+      await selectProvider();
+    }
+    return;
+  }
   for (const screen of screens) args.push('--screen', screen);
   if (promptsOnly) args.push('--prompts-only');
   else if (setting('reflect')) args.push('--reflect');
@@ -85,10 +199,12 @@ async function run(context, { screens = [], promptsOnly = false } = {}) {
   if (flutterPath) args.push('--flutter', flutterPath);
 
   const env = { ...process.env };
-  if (!promptsOnly) {
+  if (!promptsOnly && provider !== 'local') {
+    if (!(await cloudConsent(context, provider))) return;
     const key = await apiKey(context, provider);
     if (!key) return;
     env[KEY_VARIABLES[provider]] = key;
+    args.push('--accept-cloud');
   }
 
   running = true;
@@ -113,6 +229,7 @@ async function run(context, { screens = [], promptsOnly = false } = {}) {
         child.on('close', async (code) => {
           running = false;
           resolve();
+          results.refresh();
           if (code !== 0) {
             vscode.window.showErrorMessage(
               'FlutterASTest failed. See the output panel. If the command was not found, install it ' +
@@ -140,8 +257,20 @@ function screensInActiveFile() {
 
 function activate(context) {
   output = vscode.window.createOutputChannel('FlutterASTest');
+  status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+  status.command = 'flutterastest.selectProvider';
+  results = new ResultsView();
+  updateStatus();
   context.subscriptions.push(
     output,
+    status,
+    vscode.window.registerTreeDataProvider('flutterastest.results', results),
+    vscode.commands.registerCommand('flutterastest.selectProvider', selectProvider),
+    vscode.commands.registerCommand('flutterastest.doctor', runDoctor),
+    vscode.commands.registerCommand('flutterastest.refreshResults', () => results.refresh()),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('flutterastest.provider')) updateStatus();
+    }),
     vscode.commands.registerCommand('flutterastest.generateProject', () => run(context)),
     vscode.commands.registerCommand('flutterastest.generateFile', () => {
       const screens = screensInActiveFile();

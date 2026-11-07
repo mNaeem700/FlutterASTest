@@ -59,7 +59,7 @@ class ExperimentConfig {
     this.outputRoot,
     this.installTests = false,
     this.resume = false,
-    this.provider = 'gemini',
+    this.provider = 'local',
     this.llm = const LlmSettings(),
     this.mutation = false,
     this.maxMutants = 20,
@@ -107,7 +107,7 @@ class ExperimentConfig {
   /// Replay saved LLM replies, so an interrupted run repeats no call.
   final bool resume;
 
-  /// `gemini` or `openai` (any OpenAI-compatible API).
+  /// `local` (a model on this machine, the default), `gemini` or `openai`.
   final String provider;
   final LlmSettings llm;
 
@@ -208,7 +208,7 @@ class ExperimentConfig {
       targetBranchCoverage: (read(reflection, 'targetBranchCoverage') as num?)?.toDouble() ?? 0.8,
       minimumImprovement: (read(reflection, 'minimumImprovement') as num?)?.toDouble() ?? 0.02,
       model: read(llm, 'model') as String?,
-      provider: read(llm, 'provider') as String? ?? 'gemini',
+      provider: read(llm, 'provider') as String? ?? 'local',
       llm: LlmSettings(
         temperature: (read(llm, 'temperature') as num?)?.toDouble(),
         topP: (read(llm, 'topP') as num?)?.toDouble(),

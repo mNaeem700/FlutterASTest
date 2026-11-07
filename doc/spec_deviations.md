@@ -10,7 +10,7 @@ All of these can now be set (`--temperature`, `--top-p`, `--seed`, `--max-output
 
 | Setting | Specification | Implementation | Why it matters |
 |---|---|---|---|
-| Provider, model | OpenAI, gpt-4.1 (Doc 12.19), gpt-5.5 in the Doc 17 example | Gemini `gemini-3.6-flash` by default; `--provider openai` for any OpenAI-compatible API | The paper must report the model used |
+| Provider, model | OpenAI, gpt-4.1 (Doc 12.19), gpt-5.5 in the Doc 17 example | `local` by default for developers; research runs name `--provider gemini` (`gemini-3.6-flash`) or `openai` | The paper must report the model used |
 | Temperature | 0.20 | Provider default unless set | Independent variable in Doc 16.5; output varies more between runs |
 | Top P, seed | 1.0, fixed where supported | Unset unless given | Doc 16.12 names a fixed seed as a mitigation |
 | Max output tokens | 4096 | Unset unless given | Affects truncated replies |
