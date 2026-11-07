@@ -151,9 +151,17 @@ class Other { bool b = x > 1; }
       expect(CommandParser(user: user).parse(['generate']).projectPath, p.normalize(p.absolute('.')));
     });
 
+    test('a copied key works with Enter, Ctrl+V or a normal paste', () {
+      String clipboard() => ' copied-key\r\n';
+      expect(ConfigCommand.secretFrom('', clipboard), 'copied-key');
+      expect(ConfigCommand.secretFrom('\u0016', clipboard), 'copied-key');
+      expect(ConfigCommand.secretFrom(' pasted-key ', clipboard), 'pasted-key');
+      expect(ConfigCommand.secretFrom('', () => ''), '');
+    });
+
     test('a failed paste is recognised as an invalid key', () {
-      expect(apiKeyProblem('\u0016'), contains('right-click'));
-      expect(apiKeyProblem('abc def ghi jkl mno pqr stu'), contains('right-click'));
+      expect(apiKeyProblem('\u0016'), contains('set-key'));
+      expect(apiKeyProblem('abc def ghi jkl mno pqr stu'), contains('set-key'));
       expect(apiKeyProblem('short'), contains('too short'));
       expect(apiKeyProblem('AQ.Ab8RN6K_abcdefghijklmnop1234'), isNull);
     });

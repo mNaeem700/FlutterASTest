@@ -23,8 +23,8 @@ bool isLoopback(String url) {
 /// into some Windows prompts stores the control character instead of the key.
 String? apiKeyProblem(String key) {
   if (key.contains(RegExp(r'[\x00-\x20\x7f]'))) {
-    return 'it contains control characters or spaces. The paste probably did not work; '
-        'in a Windows terminal, paste with right-click instead of Ctrl+V';
+    return 'it contains control characters or spaces, so the paste probably did not work. '
+        'Copy the key again and run: flutterastest config set-key <provider>';
   }
   if (key.length < 20) return 'it is too short (${key.length} characters)';
   return null;

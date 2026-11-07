@@ -82,10 +82,10 @@ class ConfigCommand {
         user[rest.first] = null;
       case 'set-key' when rest.length == 1:
         // Read from the terminal, so the key never lands in shell history.
-        final key = readSecret('API key for ${rest.first}: ');
+        final key = readApiKey(rest.first);
         if (key.isEmpty) {
           throw const CLIException(
-              'No key was entered. In a Windows terminal, paste with right-click instead of Ctrl+V.',
+              'No key found. Copy your API key, run this command again and press Enter.',
               ExitCodes.invalidArguments);
         }
         final problem = apiKeyProblem(key);
@@ -104,6 +104,43 @@ class ConfigCommand {
           ExitCodes.invalidArguments,
         );
     }
+  }
+
+  /// Pasting into a hidden prompt can fail: some Windows consoles deliver
+  /// Ctrl+V as a control character. So a copied key works with just Enter.
+  static String readApiKey(String provider) => secretFrom(
+        readSecret('API key for $provider (copy it, then paste or just press Enter): '),
+        readClipboard,
+      );
+
+  /// The typed text without control characters, or else the clipboard.
+  static String secretFrom(String typed, String Function() clipboard) {
+    final clean = typed.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '').trim();
+    return clean.isNotEmpty ? clean : clipboard().trim();
+  }
+
+  static String readClipboard() {
+    final commands = Platform.isWindows
+        ? const [
+            ['powershell', '-NoProfile', '-Command', 'Get-Clipboard'],
+          ]
+        : Platform.isMacOS
+            ? const [
+                ['pbpaste'],
+              ]
+            : const [
+                ['wl-paste', '--no-newline'],
+                ['xclip', '-selection', 'clipboard', '-o'],
+              ];
+    for (final command in commands) {
+      try {
+        final result = Process.runSync(command.first, command.sublist(1));
+        if (result.exitCode == 0) return '${result.stdout}';
+      } on ProcessException {
+        continue;
+      }
+    }
+    return '';
   }
 
   static String readSecret(String prompt) {
@@ -301,7 +338,7 @@ class InitCommand {
     user['model'] = model.isEmpty ? null : model;
 
     if (provider != 'local') {
-      final key = ConfigCommand.readSecret('API key for $provider: ');
+      final key = ConfigCommand.readApiKey(provider);
       final problem = key.isEmpty ? null : apiKeyProblem(key);
       if (problem != null) {
         stdout.writeln('The key was not saved: $problem. Use: flutterastest config set-key $provider');
