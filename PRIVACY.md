@@ -1,9 +1,7 @@
 # Privacy Policy
 
-> **Draft.** Have a qualified lawyer review this before a public release, and fill in the contact details below. It describes what the software does today.
-
-**Effective date:** to be set at release
-**Contact:** to be added at release
+**Effective date:** November 7, 2026
+**Contact:** neemiidev@gmail.com
 
 ## Summary
 

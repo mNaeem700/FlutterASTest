@@ -1,8 +1,9 @@
 # Terms of Use
 
-> **Draft.** Have a qualified lawyer review this before a public release. These terms cover the free, self-run software only. A paid plan would need its own terms.
+These terms cover the free, self-run software.
 
-**Effective date:** to be set at release
+**Effective date:** November 7, 2026
+**Contact:** neemiidev@gmail.com
 
 ## License
 

@@ -233,7 +233,7 @@ async function run(context, { screens = [], promptsOnly = false } = {}) {
           if (code !== 0) {
             vscode.window.showErrorMessage(
               'FlutterASTest failed. See the output panel. If the command was not found, install it ' +
-                'with: dart pub global activate --source path <clone>',
+                'with: dart pub global activate --source git https://github.com/mNaeem700/FlutterASTest',
             );
             return;
           }

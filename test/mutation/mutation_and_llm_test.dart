@@ -268,6 +268,14 @@ class Other { bool b = x > 1; }
       expect(manifest['main'], './extension.js');
     });
 
+    test('the listing is complete for the Marketplace', () {
+      expect(manifest['publisher'], 'NeemiiDevs');
+      expect(File('vscode-extension/${manifest['icon']}').existsSync(), isTrue);
+      expect(File('vscode-extension/LICENSE').existsSync(), isTrue);
+      expect((manifest['keywords'] as List).length, lessThanOrEqualTo(30));
+      expect('${manifest['version']}', '1.1.0');
+    });
+
     test('settings the code reads are declared', () {
       final properties = manifest['contributes']['configuration']['properties'] as Map;
       for (final match in RegExp(r"setting\('(\w+)'\)").allMatches(code)) {

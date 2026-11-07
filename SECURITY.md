@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please do not open a public issue. Use GitHub's private vulnerability reporting on this repository, under the **Security** tab. Include the steps to reproduce and the affected version.
+Please do not open a public issue. Email neemiidev@gmail.com, or use GitHub's private vulnerability reporting under the repository's **Security** tab if it is enabled. Include the steps to reproduce and the affected version.
 
 ## API keys
 

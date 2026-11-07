@@ -1,10 +1,42 @@
 {
   "name": "flutterastest",
-  "displayName": "FlutterASTest",
-  "description": "Generate and run Flutter widget tests from an AST-based Program Knowledge Graph.",
-  "version": "1.0.0",
-  "publisher": "mnaeem700",
+  "displayName": "FlutterASTest - AI Widget Test Generator",
+  "description": "Generate and run Flutter widget tests with AI. Understands your Dart code through AST analysis; uses a local model by default, so your code stays on your machine.",
+  "version": "1.1.0",
+  "publisher": "NeemiiDevs",
   "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#020C2B",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/mNaeem700/FlutterASTest#readme",
+  "bugs": {
+    "url": "https://github.com/mNaeem700/FlutterASTest/issues",
+    "email": "neemiidev@gmail.com"
+  },
+  "qna": "https://github.com/mNaeem700/FlutterASTest/issues",
+  "keywords": [
+    "flutter",
+    "dart",
+    "flutter test",
+    "widget test",
+    "unit test",
+    "test generator",
+    "test generation",
+    "ai test generator",
+    "ai",
+    "llm",
+    "ollama",
+    "gemini",
+    "local ai",
+    "code coverage",
+    "ast",
+    "getx",
+    "bloc",
+    "riverpod",
+    "provider"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/mNaeem700/FlutterASTest"
@@ -12,7 +44,7 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Testing"],
+  "categories": ["Testing", "AI", "Other"],
   "main": "./extension.js",
   "activationEvents": ["workspaceContains:pubspec.yaml"],
   "contributes": {
@@ -87,7 +119,7 @@
         "flutterastest.executable": {
           "type": "string",
           "default": "flutterastest",
-          "description": "The FlutterASTest command. Install it with: dart pub global activate --source path <clone>"
+          "description": "The FlutterASTest command. Install it with: dart pub global activate --source git https://github.com/mNaeem700/FlutterASTest"
         },
         "flutterastest.provider": {
           "type": "string",
