@@ -15,6 +15,7 @@ import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/pkg/models/knowledge_graph.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutterastest/llm/caching_llm_service.dart';
+import 'package:flutterastest/llm/circuit_breaker_llm_service.dart';
 import 'package:flutterastest/llm/llm_factory.dart';
 import 'package:flutterastest/llm/llm_module.dart';
 import 'package:flutterastest/llm/llm_service.dart';
@@ -38,7 +39,7 @@ class PipelineOrchestrator {
   PipelineOrchestrator({
     ModuleRegistry? registry,
     LlmService? llmService,
-    this.requestInterval = const Duration(seconds: 10),
+    this.requestInterval,
   })  : _registry = registry ?? ModuleRegistry(),
         _llmService = llmService;
 
@@ -69,8 +70,8 @@ class PipelineOrchestrator {
   /// Injected LLM; when null, Gemini is used with the key from the environment.
   final LlmService? _llmService;
 
-  /// Pause between LLM calls, to respect provider rate limits.
-  final Duration requestInterval;
+  /// Overrides the run's pause between LLM calls.
+  final Duration? requestInterval;
 
   Future<PipelineResult> start({
     required String projectPath,
@@ -208,6 +209,9 @@ class PipelineOrchestrator {
         success: true,
         metrics: context.metrics,
       );
+    } on LlmUnavailableException {
+      await _writeRecords(context, config, log, stopwatch.elapsed, command);
+      rethrow;
     } on PipelineException {
       await _writeRecords(context, config, log, stopwatch.elapsed, command);
       rethrow;
@@ -249,6 +253,8 @@ class PipelineOrchestrator {
           success: true,
         ),
       );
+    } on LlmUnavailableException {
+      rethrow;
     } catch (e) {
       _quietStage = false;
       final finished = DateTime.now();
@@ -283,15 +289,19 @@ class PipelineOrchestrator {
     if (promptsOnly) return;
 
     final base = _llmService ?? createLlmService(config);
+    final interval = requestInterval ??
+        config.requestInterval ??
+        (config.provider == 'local' ? Duration.zero : const Duration(seconds: 10));
+    final guarded = CircuitBreakerLlmService(base);
     final llm = config.resume
-        ? CachingLlmService(base, p.join(config.outputRoot ?? 'output', 'llm_cache', config.runName))
-        : base;
+        ? CachingLlmService(guarded, p.join(config.outputRoot ?? 'output', 'llm_cache', config.runName))
+        : guarded;
     final runner = FlutterTestRunner(flutter: command);
     _registry.register(PreflightModule(runner: runner));
-    _registry.register(LlmModule(llmService: llm, requestInterval: requestInterval));
+    _registry.register(LlmModule(llmService: llm, requestInterval: interval));
     _registry.register(ExecutorModule(runner: runner));
     if (config.reflect) {
-      _registry.register(ReflectionModule(llmService: llm, requestInterval: requestInterval));
+      _registry.register(ReflectionModule(llmService: llm, requestInterval: interval));
     }
     if (config.mutation) _registry.register(MutationModule(runner: runner));
     _registry.register(EvaluationModule(llmService: llm));

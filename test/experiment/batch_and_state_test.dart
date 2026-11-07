@@ -6,6 +6,8 @@ import 'package:flutterastest/experiment/batch_runner.dart';
 import 'package:flutterastest/experiment/cpu_usage.dart';
 import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/llm/caching_llm_service.dart';
+import 'package:flutterastest/llm/circuit_breaker_llm_service.dart';
+import 'package:flutterastest/prompt_builder/prompt_module.dart';
 import 'package:flutterastest/llm/llm_service.dart';
 import 'package:flutterastest/llm/models/llm_response.dart';
 import 'package:path/path.dart' as p;
@@ -58,6 +60,29 @@ void main() {
     });
   });
 
+  test('the circuit breaker stops after 5 failures in a row, not after scattered ones', () async {
+    final llm = _CountingLlm();
+    final breaker = CircuitBreakerLlmService(llm);
+    llm.fail = true;
+    for (var i = 0; i < 4; i++) {
+      expect((await breaker.generate('p')).succeeded, isFalse);
+    }
+    llm.fail = false;
+    expect((await breaker.generate('p')).succeeded, isTrue);
+    llm.fail = true;
+    for (var i = 0; i < 4; i++) {
+      await breaker.generate('p');
+    }
+    expect(() => breaker.generate('p'), throwsA(isA<LlmUnavailableException>()));
+  });
+
+  test('screen sampling is even and repeatable', () {
+    final names = List.generate(100, (i) => 's$i');
+    expect(PromptModule.sample(names, 4), ['s0', 's25', 's50', 's75']);
+    expect(PromptModule.sample(names, null), names);
+    expect(PromptModule.sample(['a'], 5), ['a']);
+  });
+
   group('batch manifest', () {
     const manifest = '''
 output: out
@@ -88,7 +113,12 @@ projects: [apps/one]
 runs: [{mode: pkg}]
 ''').single;
       expect(BatchRunner.isComplete(item), isFalse);
-      File(p.join(item.config.runDirectory, 'results.json')).createSync(recursive: true);
+      final results = File(p.join(item.config.runDirectory, 'results.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"summary": {"screens": 3, "generated": 2}}');
+      expect(BatchRunner.isComplete(item), isFalse,
+          reason: 'a screen got no reply, so the run must be repeated');
+      results.writeAsStringSync('{"summary": {"screens": 3, "generated": 3}}');
       expect(BatchRunner.isComplete(item), isTrue);
     });
 

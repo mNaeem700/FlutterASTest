@@ -13,6 +13,10 @@ output/
 generated_tests/
 coverage/
 
+# Local experiment lists
+benchmark/*.yaml
+!benchmark/manifest.example.yaml
+
 # VS Code extension packages
 vscode-extension/*.vsix
 vscode-extension/node_modules/

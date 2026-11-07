@@ -85,11 +85,13 @@ Usage:
 
 flutterastest init                    first-time setup
 flutterastest doctor [project]        check Flutter, project and LLM setup
+                                      (--test-llm also makes one small LLM call)
 flutterastest generate [project]      analyse the project, then write and run tests
                                       (also: analyse; default project: this folder)
 flutterastest config list | get <k> | set <k> <v> | unset <k> |
                      set-key <provider> | remove-key <provider>
 flutterastest batch <manifest.yaml>   all projects x setups x repetitions, resumable
+                                      (--plan checks the apps with no LLM calls)
 flutterastest compare <runDir> <runDir> [...]   statistics between runs
 flutterastest compare --batch-root <dir> <setup> <setup> [...]   across a batch
 flutterastest accuracy <screen_contexts.json> <truth.json>   RQ1 precision/recall
@@ -111,6 +113,8 @@ Options:
 --model <id>            LLM model id
 --token-budget <n>      context limit in estimated tokens (default 8000)
 --screen <name>         only this screen; repeat for more
+--max-screens <n>       evenly spaced sample, to stay within a quota
+--request-interval <s>  pause between LLM calls
 --provider <p>          local (default, code stays on this machine), gemini, or openai
                         (any OpenAI-compatible API); cloud providers ask first
 --accept-cloud          agree to send code to the cloud provider, for scripts

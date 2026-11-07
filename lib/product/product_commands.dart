@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../cli/cli_exception.dart';
 import '../cli/exit_codes.dart';
 import '../execution/flutter_command.dart';
+import '../experiment/experiment_config.dart';
 import '../llm/llm_factory.dart';
 import 'user_config.dart';
 
@@ -126,16 +127,25 @@ class DoctorCheck {
 class Doctor {
   const Doctor();
 
-  Future<int> run(String projectPath, UserConfig user) async {
-    final provider = user['provider'] ?? 'local';
+  Future<int> run(
+    String projectPath,
+    UserConfig user, {
+    String? provider,
+    String? model,
+    ExperimentConfig? config,
+    bool testLlm = false,
+  }) async {
+    final chosen = provider ?? user['provider'] ?? 'local';
+    final chosenModel = model ?? user['model'];
     final checks = [
       DoctorCheck('Dart', true, Platform.version.split(' ').first),
       await _flutter(projectPath),
       _project(projectPath),
-      if (provider == 'local')
-        await checkLocalServer(localBaseUrl(user), user['model'])
+      if (chosen == 'local')
+        await checkLocalServer(localBaseUrl(user), chosenModel)
       else
-        _cloudKey(provider, user),
+        _cloudKey(chosen, user),
+      if (testLlm && config != null) await _llmCall(config),
     ];
     stdout.writeln('FlutterASTest doctor\n');
     for (final check in checks) {
@@ -145,6 +155,21 @@ class Doctor {
     final problems = checks.where((c) => !c.ok).length;
     stdout.writeln(problems == 0 ? '\nEverything is ready.' : '\n$problems problem(s) found.');
     return problems == 0 ? ExitCodes.success : ExitCodes.configurationError;
+  }
+
+  /// One small request with no project code in it: proves the key and the
+  /// model work before a long run spends time.
+  Future<DoctorCheck> _llmCall(ExperimentConfig config) async {
+    try {
+      final service = createLlmService(config);
+      final reply = await service.generate('Reply with the single word OK.');
+      return reply.succeeded
+          ? DoctorCheck('LLM call', true, '${service.model} replied in ${reply.latencyMs} ms')
+          : DoctorCheck('LLM call', false, '${service.model}: ${reply.error}',
+              fix: 'Check the API key, the model name and the quota.');
+    } on StateError catch (e) {
+      return DoctorCheck('LLM call', false, e.message);
+    }
   }
 
   Future<DoctorCheck> _flutter(String projectPath) async {

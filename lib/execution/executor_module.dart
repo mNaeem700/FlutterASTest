@@ -50,7 +50,9 @@ class AttemptExecutor {
       return rejected;
     }
 
-    Future<TestRun> runOnce(String lcovPath) => runner.run(
+    Future<TestRun> runOnce(String lcovPath) async {
+      try {
+        return await runner.run(
           projectPath: projectPath,
           screenName: outcome.screenName,
           screenFile: outcome.screenFile,
@@ -58,6 +60,12 @@ class AttemptExecutor {
           lcovPath: lcovPath,
           timeout: config.testTimeout,
         );
+      } on Exception catch (e) {
+        // One screen's failure must not end a long experiment.
+        return TestRun(
+            compiled: false, cases: const [], durationMs: 0, loadErrors: ['Could not run: $e']);
+      }
+    }
 
     final lcovPath = _artifacts.lcovFile(outcome.screenName, attempt.iteration);
     var run = await runOnce(lcovPath);

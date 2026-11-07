@@ -35,6 +35,10 @@ class FlutterCommand {
       Process.start(executable, [...prefix, ...arguments],
           workingDirectory: workingDirectory, runInShell: true);
 
+  Future<ProcessResult> runIn(List<String> arguments, String workingDirectory) =>
+      Process.run(executable, [...prefix, ...arguments],
+          workingDirectory: workingDirectory, runInShell: true);
+
   Future<ProcessResult> run(List<String> arguments) =>
       Process.run(executable, [...prefix, ...arguments], runInShell: true);
 

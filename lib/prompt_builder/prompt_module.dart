@@ -34,9 +34,10 @@ class PromptModule implements PipelineModule {
     final all = config.mode == ContextMode.pkg
         ? _fromGraph(context, config)
         : _fromSource(context, config);
-    final contexts = config.screens.isEmpty
+    final chosen = config.screens.isEmpty
         ? all
         : [for (final c in all) if (config.screens.contains(c.screenName)) c];
+    final contexts = sample(chosen, config.maxScreens);
     if (contexts.isEmpty && config.screens.isNotEmpty) {
       throw Exception('No analysed screen is named ${config.screens.join(', ')}. '
           'Screens found: ${all.map((c) => c.screenName).join(', ')}');
@@ -44,6 +45,11 @@ class PromptModule implements PipelineModule {
     context.put<List<PromptContext>>(contexts);
     print('Generated context for ${contexts.length} screens.');
   }
+
+  /// Evenly spaced over the name-sorted list, so every mode picks the same screens.
+  static List<T> sample<T>(List<T> items, int? limit) => limit == null || items.length <= limit
+      ? items
+      : [for (var i = 0; i < limit; i++) items[i * items.length ~/ limit]];
 
   List<PromptContext> _fromGraph(PipelineContext context, ExperimentConfig config) {
     final graph = context.get<KnowledgeGraph>();

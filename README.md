@@ -134,8 +134,10 @@ dart run bin/flutterastest.dart compare <output>/runs/baseline <output>/runs/pkg
 # RQ1 extraction accuracy against a manual annotation
 dart run bin/flutterastest.dart accuracy <output>/analysis/screen_contexts.json truth.json
 
-# Everything from one manifest: projects x setups x repetitions. Restarting
+# Everything from one manifest (see benchmark/manifest.example.yaml): projects x
+# setups x repetitions. --plan checks the apps first, with no LLM calls. Restarting
 # skips finished runs and replays saved LLM replies, so no call is repeated.
+dart run bin/flutterastest.dart batch manifest.yaml --plan
 dart run bin/flutterastest.dart batch manifest.yaml
 dart run bin/flutterastest.dart compare --batch-root output/benchmark baseline pkg pkg-reflect
 

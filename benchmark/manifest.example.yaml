@@ -1,0 +1,47 @@
+# Copy this file, list your apps, then:
+#   flutterastest batch my_manifest.yaml --plan     checks the apps, no LLM calls
+#   flutterastest batch my_manifest.yaml            runs everything
+# Restarting the batch skips finished runs and repeats no LLM call.
+
+output: output/benchmark
+
+provider: gemini            # or: openai, local
+# model: gemini-3.6-flash
+
+# Sampling settings (Doc 12.19). Delete a line to use the provider's default.
+temperature: 0.2
+seed: 42
+maxOutputTokens: 8192       # Doc 12 says 4096; long test files can need more
+requestTimeoutSeconds: 300
+
+# Rate and quota control.
+requestIntervalSeconds: 10  # pause between LLM calls
+screensPerApp: 10           # evenly spaced sample per app; remove to test all
+
+# Run `flutter pub get` in each app first. Only for your own benchmark clones.
+pubGet: true
+
+repetitions: 1              # use 3 or more for the final experiments
+maxIterations: 5
+testTimeoutSeconds: 600
+
+mutation: false             # slow; turn on for a final run
+maxMutants: 20
+
+projects:
+  - D:\benchmark\app_one
+  - D:\benchmark\app_two
+  # An app that needs its own Flutter version:
+  # - {path: D:\benchmark\app_three, flutter: C:\sdks\flutter-3.47\bin\flutter.bat}
+
+runs:
+  - {mode: baseline}             # Group A: raw screen file
+  - {mode: file}                 # Group B: screen and imported files
+  - {mode: pkg}                  # Group C: PKG context
+  - {mode: pkg, reflect: true}   # Group D: PKG and reflection
+  # Baseline 4 and the ablations, when your quota allows:
+  # - {mode: repository}
+  # - {mode: pkg, ablation: noPkgLinks}
+  # - {mode: pkg, ablation: noContextBuilder}
+  # - {mode: pkg, ablation: noPromptBuilder}
+  # - {mode: pkg, reflect: true, ablation: noCoverageGuidance}

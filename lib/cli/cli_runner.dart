@@ -36,7 +36,14 @@ class CLIRunner {
         break;
 
       case 'doctor':
-        exitCode = await const Doctor().run(options.projectPath!, UserConfig.load());
+        exitCode = await const Doctor().run(
+          options.projectPath!,
+          UserConfig.load(),
+          provider: options.experiment.provider,
+          model: options.experiment.model,
+          config: options.experiment,
+          testLlm: options.testLlm,
+        );
         break;
 
       case 'init':
@@ -44,7 +51,11 @@ class CLIRunner {
         break;
 
       case 'batch':
-        await BatchRunner().runManifest(options.arguments.first);
+        if (options.plan) {
+          exitCode = await BatchRunner().plan(options.arguments.first);
+        } else {
+          await BatchRunner().runManifest(options.arguments.first);
+        }
         break;
 
       case 'compare':

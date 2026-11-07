@@ -2,6 +2,7 @@ output/
 build/
 coverage/
 vscode-extension/
+benchmark/
 Dockerfile
 .dockerignore
 .mcp.json

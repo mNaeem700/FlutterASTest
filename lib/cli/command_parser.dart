@@ -65,6 +65,10 @@ class CommandParser {
       ..addOption('max-mutants')
       ..addOption('provider', allowed: ['local', 'gemini', 'openai'])
       ..addFlag('accept-cloud', negatable: false)
+      ..addFlag('plan', negatable: false)
+      ..addFlag('test-llm', negatable: false)
+      ..addOption('max-screens')
+      ..addOption('request-interval')
       ..addOption('temperature')
       ..addOption('top-p')
       ..addOption('seed')
@@ -102,6 +106,8 @@ class CommandParser {
       flutter: result['flutter'] as String?,
       batchRoot: result['batch-root'] as String?,
       acceptCloud: result['accept-cloud'] as bool,
+      plan: result['plan'] as bool,
+      testLlm: result['test-llm'] as bool,
       experiment: _experiment(result),
     );
   }
@@ -126,6 +132,10 @@ class CommandParser {
       label: result['label'] as String?,
       resume: result['resume'] as bool ? true : null,
       mutation: result['mutation'] as bool ? true : null,
+      maxScreens: result.wasParsed('max-screens') ? _positiveInt(result, 'max-screens') : null,
+      requestInterval: result.wasParsed('request-interval')
+          ? Duration(seconds: _positiveInt(result, 'request-interval'))
+          : null,
       maxMutants: result.wasParsed('max-mutants') ? _positiveInt(result, 'max-mutants') : null,
       provider: result['provider'] as String? ?? (path == null ? _user['provider'] : null),
       screens: result.wasParsed('screen') ? (result['screen'] as List<String>).toSet() : null,
@@ -138,7 +148,7 @@ class CommandParser {
             ? Duration(seconds: _positiveInt(result, 'request-timeout'))
             : base.llm.requestTimeout,
       ),
-      model: result['model'] as String?,
+      model: result['model'] as String? ?? (path == null ? _user['model'] : null),
       outputRoot: result['output'] == null
           ? null
           : p.normalize(p.absolute(result['output'] as String)),

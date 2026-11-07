@@ -32,6 +32,12 @@ class CLIOptions {
   /// Agreement to send code to the chosen cloud provider.
   final bool acceptCloud;
 
+  /// Check a batch manifest without calling the LLM.
+  final bool plan;
+
+  /// Make one small LLM call in `doctor`.
+  final bool testLlm;
+
   const CLIOptions({
     required this.command,
     required this.projectPath,
@@ -44,5 +50,7 @@ class CLIOptions {
     this.flutter,
     this.batchRoot,
     this.acceptCloud = false,
+    this.plan = false,
+    this.testLlm = false,
   });
 }

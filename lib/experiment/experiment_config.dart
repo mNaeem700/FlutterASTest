@@ -64,6 +64,8 @@ class ExperimentConfig {
     this.mutation = false,
     this.maxMutants = 20,
     this.screens = const {},
+    this.maxScreens,
+    this.requestInterval,
   });
 
   /// Upper bound of repair iterations of the reflection loop (Doc 15.20.3).
@@ -118,6 +120,13 @@ class ExperimentConfig {
   /// Only these screens; empty means all.
   final Set<String> screens;
 
+  /// Evenly spaced sample of this many screens, to stay within a quota. The
+  /// same screens are chosen in every mode, so runs stay comparable.
+  final int? maxScreens;
+
+  /// Pause between LLM calls; null means 10 s, or none for a local model.
+  final Duration? requestInterval;
+
   /// A developer's run keeps everything in their project. With an explicit
   /// output folder (research runs) the target project stays unchanged.
   ExperimentConfig resolvedFor(String projectPath) => outputRoot != null
@@ -163,6 +172,8 @@ class ExperimentConfig {
     bool? mutation,
     int? maxMutants,
     Set<String>? screens,
+    int? maxScreens,
+    Duration? requestInterval,
   }) =>
       ExperimentConfig(
         mode: mode ?? this.mode,
@@ -185,6 +196,8 @@ class ExperimentConfig {
         mutation: mutation ?? this.mutation,
         maxMutants: maxMutants ?? this.maxMutants,
         screens: screens ?? this.screens,
+        maxScreens: maxScreens ?? this.maxScreens,
+        requestInterval: requestInterval ?? this.requestInterval,
       );
 
   /// Reads the YAML configuration file of Doc 17.10. Missing keys keep their
@@ -243,6 +256,7 @@ class ExperimentConfig {
         'mutation': mutation,
         'maxMutants': maxMutants,
         if (screens.isNotEmpty) 'screens': screens.toList(),
+        'maxScreens': maxScreens,
         'installTests': installTests,
       };
 }
