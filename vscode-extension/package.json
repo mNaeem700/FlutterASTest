@@ -2,7 +2,7 @@
   "name": "flutterastest",
   "displayName": "FlutterASTest - AI Widget Test Generator",
   "description": "Generate and run Flutter widget tests with AI. Understands your Dart code through AST analysis; uses a local model by default, so your code stays on your machine.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "NeemiiDevs",
   "license": "MIT",
   "icon": "icon.png",

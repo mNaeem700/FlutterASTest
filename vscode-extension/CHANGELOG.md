@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 (pre-release)
+
+- Fix Check Setup, which failed in PowerShell terminals. It now runs in the output panel.
+
 ## 1.1.0 (pre-release)
 
 First public pre-release.

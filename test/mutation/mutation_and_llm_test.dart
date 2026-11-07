@@ -273,7 +273,9 @@ class Other { bool b = x > 1; }
       expect(File('vscode-extension/${manifest['icon']}').existsSync(), isTrue);
       expect(File('vscode-extension/LICENSE').existsSync(), isTrue);
       expect((manifest['keywords'] as List).length, lessThanOrEqualTo(30));
-      expect('${manifest['version']}', '1.1.0');
+      expect('${manifest['version']}', '1.1.1');
+      expect(code, isNot(contains('sendText')),
+          reason: 'a terminal shell may be PowerShell, where a quoted command does not run');
     });
 
     test('settings the code reads are declared', () {

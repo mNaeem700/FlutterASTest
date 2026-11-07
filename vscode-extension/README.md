@@ -43,7 +43,7 @@ FlutterASTest needs its command-line tool, which this extension runs for you.
 | Open Latest Report | Opens the latest report in your browser |
 | Choose LLM Provider | Switches between a local model and a cloud provider |
 | Set API Key | Replaces your saved key |
-| Check Setup | Checks Flutter, your project and your AI model |
+| Check Setup | Checks Flutter, your project and your AI model, and shows the result in the Output panel |
 
 Results of the latest run appear in the **Testing** panel.
 

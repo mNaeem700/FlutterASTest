@@ -157,11 +157,41 @@ function updateStatus() {
   status.show();
 }
 
+const INSTALL_HINT =
+  'Install the FlutterASTest command with: dart pub global activate --source git https://github.com/mNaeem700/FlutterASTest';
+
+// Runs in the output panel, not a terminal: the user's terminal may be
+// PowerShell, cmd or bash, and each quotes a command differently.
 function runDoctor() {
   const project = projectFolder();
-  const terminal = vscode.window.createTerminal('FlutterASTest');
-  terminal.show();
-  terminal.sendText(`${quote(setting('executable'))} doctor${project ? ` ${quote(project)}` : ''}`);
+  const args = ['doctor'];
+  if (project) args.push(project);
+  args.push('--provider', setting('provider'));
+  const model = setting('model');
+  if (model) args.push('--model', model);
+
+  output.clear();
+  output.show(true);
+  return new Promise((resolve) => {
+    let text = '';
+    const append = (data) => {
+      text += data.toString();
+      output.append(data.toString());
+    };
+    const child = spawn([quote(setting('executable')), ...args.map(quote)].join(' '), {
+      cwd: project,
+      shell: true,
+    });
+    child.stdout.on('data', append);
+    child.stderr.on('data', append);
+    child.on('close', (code) => {
+      if (code !== 0 && !text.includes('FlutterASTest doctor')) {
+        output.appendLine(`\n${INSTALL_HINT}`);
+        vscode.window.showErrorMessage(`FlutterASTest command not found. ${INSTALL_HINT}`);
+      }
+      resolve();
+    });
+  });
 }
 
 async function run(context, { screens = [], promptsOnly = false } = {}) {
