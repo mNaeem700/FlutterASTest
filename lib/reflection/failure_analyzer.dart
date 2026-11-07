@@ -24,6 +24,9 @@ class FailureAnalysis {
     required this.primaryCause,
     required this.recommendations,
     required this.signature,
+    this.secondaryCauses = const [],
+    this.evidence = const [],
+    this.confidence = 0,
   });
 
   final Map<FailureCategory, int> categories;
@@ -33,11 +36,23 @@ class FailureAnalysis {
   /// Identifies the failure; the same signature twice means no progress.
   final String signature;
 
+  final List<String> secondaryCauses;
+
+  /// First lines of the errors the diagnosis rests on.
+  final List<String> evidence;
+
+  /// Share of this run's failures that the primary cause accounts for, in
+  /// [0, 1]. It is measured from the run, not a predicted probability.
+  final double confidence;
+
   bool get hasFailures => categories.isNotEmpty;
 
   Map<String, dynamic> toJson() => {
         'categories': {for (final e in categories.entries) e.key.name: e.value},
         'primaryCause': primaryCause,
+        'secondaryCauses': secondaryCauses,
+        'confidence': double.parse(confidence.toStringAsFixed(4)),
+        'evidence': evidence,
         'recommendations': recommendations,
       };
 }
@@ -90,7 +105,19 @@ class FailureAnalyzer {
         if (c.status == TestCaseStatus.failed) c.name,
     ]..sort();
 
+    final total = categories.values.fold<int>(0, (sum, count) => sum + count);
+    final messages = <String>[
+      ...run.loadErrors,
+      for (final c in run.cases)
+        if (c.status == TestCaseStatus.failed && c.message != null) c.message!,
+    ];
     return FailureAnalysis(
+      secondaryCauses: [for (final c in ordered.skip(1)) c.name],
+      confidence: total == 0 ? 0 : categories[ordered.first]! / total,
+      evidence: [
+        for (final message in messages.take(3))
+          message.split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => '').trim(),
+      ],
       categories: categories,
       primaryCause: ordered.isEmpty ? 'none' : ordered.first.name,
       recommendations: [for (final c in ordered) _advice[c]!],

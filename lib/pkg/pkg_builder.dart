@@ -12,9 +12,10 @@ import 'package:flutterastest/pkg/models/pkg_node.dart';
 /// Dependency nodes are shared between screens that use the same class.
 class PkgBuilder {
   static const _external = '<external>';
-  static const _routes = '<routes>';
+  static const _routeFile = '<routes>';
 
   late String _package;
+  Map<String, String> _routes = const {};
 
   String _id(String file, String entity, int offset) => '$_package::$file::$entity::$offset';
 
@@ -25,6 +26,7 @@ class PkgBuilder {
     _package = analysis.projectInfo.packageName;
     final graph = KnowledgeGraph();
     final screenIds = <String, String>{};
+    _routes = analysis.routes;
 
     for (final screen in analysis.screenContexts) {
       final id = _located(screen.location, screen.relativePath, screen.name);
@@ -75,6 +77,12 @@ class PkgBuilder {
         },
       ));
       graph.addEdge(PkgEdge(sourceId: parentId, targetId: id, type: EdgeType.contains, order: order));
+      for (var i = 0; i < node.validations.length; i++) {
+        final ruleId = _located(node.location, screen.relativePath,
+            '${screen.name}/${node.type}@${node.path}.validator$i');
+        graph.addNode(PkgNode(id: ruleId, label: node.validations[i], type: NodeType.validation));
+        graph.addEdge(PkgEdge(sourceId: id, targetId: ruleId, type: EdgeType.validates, order: i));
+      }
       for (var i = 0; i < node.children.length; i++) {
         add(node.children[i], id, i);
       }
@@ -206,7 +214,7 @@ class PkgBuilder {
     final target = navigation.target;
     String targetId;
     if (target == null) {
-      targetId = _id(_routes, '<previous>', 0);
+      targetId = _id(_routeFile, '<previous>', 0);
       graph.addNode(PkgNode(
         id: targetId,
         label: 'previous route',
@@ -215,8 +223,17 @@ class PkgBuilder {
       ));
     } else if (!navigation.isRouteName && screenIds.containsKey(target)) {
       targetId = screenIds[target]!;
+    } else if (navigation.isRouteName && screenIds.containsKey(_routes[target])) {
+      targetId = screenIds[_routes[target]]!;
+      graph.addEdge(PkgEdge(
+        sourceId: sourceId,
+        targetId: targetId,
+        type: EdgeType.navigatesTo,
+        label: '${navigation.api}($target)',
+      ));
+      return;
     } else {
-      targetId = _id(_routes, target, 0);
+      targetId = _id(_routeFile, target, 0);
       graph.addNode(PkgNode(
         id: targetId,
         label: target,

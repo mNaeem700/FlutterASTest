@@ -126,6 +126,7 @@ class RunMetrics {
       'flakyTests': runs.fold<int>(0, (sum, r) => sum + (r?.flakyTests.length ?? 0)),
       'rejectedBeforeExecution': runs.where((r) => r?.rejectedBeforeExecution ?? false).length,
       'meanAssertionsPerTest': _round(_mean(qualities.map((q) => q.assertionsPerTest))),
+      'meanMaintainabilityIndex': _round(_mean(qualities.map((q) => q.maintainabilityIndex))),
       'testSmells': smells,
       'initialFailureCategories': failures,
       'stoppingReasons': stops,

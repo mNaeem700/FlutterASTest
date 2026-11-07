@@ -198,6 +198,7 @@ class ActionSummarizer {
         effects: {for (final b in branches) ...b.effects}.toList(),
         isAsync: branches.any((b) => b.isAsync),
         sites: {for (final b in branches) ...b.sites}.toList(),
+        events: {for (final b in branches) ...b.events}.toList(),
       );
     }
     if (node is FunctionExpression) {
@@ -214,6 +215,7 @@ class ActionSummarizer {
           effects: inner.effects,
           isAsync: inner.isAsync,
           sites: inner.sites,
+          events: inner.events,
         );
       }
       return ActionSummary(calls: [node.name]);
@@ -276,6 +278,7 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
   final stateChanges = <String>{};
   final effects = <String>{};
   final sites = <ActionSite>{};
+  final events = <String>{};
   bool sawAwait = false;
 
   ActionSummary build({required bool isAsync}) => ActionSummary(
@@ -285,6 +288,7 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
         effects: effects.toList(),
         isAsync: isAsync || sawAwait,
         sites: sites.toList(),
+        events: events.toList(),
       );
 
   void _site(SiteKind kind, String description, AstNode node) {
@@ -376,7 +380,12 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
           !receiver.startsWith('Navigator') &&
           !receiver.startsWith('MediaQuery') &&
           !receiver.startsWith('Theme.of')) {
-        calls.add('${_compactReceiver(receiver)}.$method');
+        final compact = _compactReceiver(receiver);
+        calls.add('$compact.$method');
+        if (method == 'add' && node.argumentList.arguments.isNotEmpty) {
+          final event = asWidgetCall(node.argumentList.arguments.first);
+          if (event != null) events.add('$compact|${event.type}');
+        }
         // a.b().c().d() is one call; only arguments of the inner links can
         // contain further actions, so do not record b and c separately.
         _visitChainArguments(target);
@@ -418,6 +427,7 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
     stateChanges.addAll(nested.stateChanges);
     effects.addAll(nested.effects);
     sites.addAll(nested.sites);
+    events.addAll(nested.events);
     if (declaration.body.isAsynchronous || nested.sawAwait) sawAwait = true;
   }
 

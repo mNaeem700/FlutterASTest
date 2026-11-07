@@ -20,6 +20,9 @@ class AnalysisResult {
   final List<ScreenContextModel> screenContexts;
   final ArchitectureHealthModel? architectureHealth;
 
+  /// Route name → widget class it opens.
+  final Map<String, String> routes;
+
   const AnalysisResult({
     required this.totalFiles,
     required this.projectInfo,
@@ -33,5 +36,6 @@ class AnalysisResult {
     required this.properties,
     required this.screenContexts,
     this.architectureHealth,
+    this.routes = const {},
   });
 }

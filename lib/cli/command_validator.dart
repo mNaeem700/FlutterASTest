@@ -63,6 +63,13 @@ class CommandValidator {
     }
 
     final directory = Directory(options.projectPath!);
+    final pubspec = File('${directory.path}${Platform.pathSeparator}pubspec.yaml');
+    if (directory.existsSync() && !pubspec.existsSync()) {
+      throw CLIException(
+        'Not a Flutter project (no pubspec.yaml): ${options.projectPath}',
+        ExitCodes.invalidArguments,
+      );
+    }
 
     if (!directory.existsSync()) {
       throw CLIException(

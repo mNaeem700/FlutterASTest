@@ -15,6 +15,7 @@ class WidgetTreeNode {
     this.handlers = const [],
     this.children = const [],
     this.location,
+    this.validations = const [],
   });
 
   /// Position in the tree, e.g. "0.1.2". Unique within one screen.
@@ -33,6 +34,10 @@ class WidgetTreeNode {
 
   /// The constructor call that creates the widget.
   final SourceLocation? location;
+
+  /// Error messages of the `validator` argument, or `by <function>` when the
+  /// messages live outside the project's visible code.
+  final List<String> validations;
 
   Iterable<WidgetTreeNode> get descendants sync* {
     for (final child in children) {
@@ -57,6 +62,7 @@ class WidgetTreeNode {
         if (key != null) 'key': key,
         if (handlers.isNotEmpty) 'handlers': handlers,
         if (location != null) 'location': location!.toJson(),
+        if (validations.isNotEmpty) 'validations': validations,
         if (children.isNotEmpty) 'children': children.map((c) => c.toJson()).toList(),
       };
 }
@@ -141,6 +147,7 @@ class ActionSummary {
     this.effects = const [],
     this.isAsync = false,
     this.sites = const [],
+    this.events = const [],
   });
 
   /// Invoked members, e.g. "authController.login", "_validate".
@@ -157,6 +164,9 @@ class ActionSummary {
   /// Where the navigation, state changes and effects happen.
   final List<ActionSite> sites;
 
+  /// Events added to a Bloc, as `receiver|EventClass`.
+  final List<String> events;
+
   bool get isEmpty =>
       calls.isEmpty && navigation.isEmpty && stateChanges.isEmpty && effects.isEmpty;
 
@@ -167,6 +177,7 @@ class ActionSummary {
         'effects': effects,
         'isAsync': isAsync,
         'sites': sites.map((s) => s.toJson()).toList(),
+        if (events.isNotEmpty) 'events': events,
       };
 }
 

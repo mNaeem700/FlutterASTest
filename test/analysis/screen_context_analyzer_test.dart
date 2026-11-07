@@ -28,8 +28,14 @@ void main() {
 
     expect(nodes.first.type, 'Scaffold');
     expect(nodes.any((n) => n.type == 'Text' && n.labels.contains('Sign in')), isTrue);
-    expect(nodes.any((n) => n.type == 'TextField' && n.labels.contains('Email')), isTrue);
+    expect(nodes.any((n) => n.type == 'TextFormField' && n.labels.contains('Email')), isTrue);
     expect(nodes.any((n) => n.type == 'ElevatedButton' && n.key == 'login'), isTrue);
+  });
+
+  test('validator messages are extracted from the form fields', () {
+    final fields = login.allWidgets.where((n) => n.type == 'TextFormField').toList();
+    expect(fields[0].validations, ['Email required']);
+    expect(fields[1].validations, ['by Validators.password']);
   });
 
   test('a conditional handler is summarised from its non-null branch', () {

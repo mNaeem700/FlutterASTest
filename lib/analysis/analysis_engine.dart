@@ -1,6 +1,7 @@
 import 'package:flutterastest/parser/models/parser_result.dart';
 
 import 'analysis_result.dart';
+import 'flutter_ast/route_table.dart';
 import 'analyzers/architecture_health_analyzer.dart';
 import 'analyzers/callback_analyzer.dart';
 import 'analyzers/dependency_analyzer.dart';
@@ -81,6 +82,7 @@ class AnalysisEngine {
       callbacks: _callbackAnalyzer.analyse(index),
       properties: _propertyAnalyzer.analyse(parserResult),
       screenContexts: _screenContextAnalyzer.analyse(index, screens),
+      routes: const RouteTable().build(index.units, index.widgetClasses.keys.toSet()),
       architectureHealth: _healthAnalyzer.analyse(
         dependencies: dependencies,
         navigation: navigation,

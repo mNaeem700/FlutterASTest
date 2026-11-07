@@ -25,6 +25,9 @@ enum EdgeType {
 
   /// Screen → lifecycle hook (initState, dispose, ...).
   hasLifecycle,
+
+  /// Input widget → validation rule it enforces.
+  validates,
 }
 
 class PkgEdge {

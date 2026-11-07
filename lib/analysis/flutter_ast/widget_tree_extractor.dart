@@ -186,6 +186,7 @@ class WidgetTreeExtractor {
     final labels = <String>[];
     String? key;
     final handlers = <String>[];
+    final validations = <String>[];
     final children = <WidgetTreeNode>[];
     var childIndex = 0;
 
@@ -212,6 +213,10 @@ class WidgetTreeExtractor {
 
       if (name == 'key') {
         key = _keyValue(value);
+        continue;
+      }
+      if (name == 'validator') {
+        validations.addAll(_validationMessages(value));
         continue;
       }
       if (_isHandler(name, value)) {
@@ -263,7 +268,30 @@ class WidgetTreeExtractor {
       handlers: handlers,
       children: children,
       location: locate(call.node),
+      validations: validations,
     );
+  }
+
+  List<String> _validationMessages(Expression value) {
+    final node = unwrap(value);
+    if (node is NullLiteral) return const [];
+    final FunctionBody? body = node is FunctionExpression
+        ? node.body
+        : node is SimpleIdentifier
+            ? _methods[node.name]?.body
+            : null;
+    if (body == null) return ['by ${node.toSource()}'];
+    final messages = {for (final e in returnedExpressions(body)) ..._messages(e)};
+    return messages.isEmpty ? ['by ${node.toSource()}'] : messages.toList();
+  }
+
+  static List<String> _messages(Expression expression) {
+    final node = unwrap(expression);
+    if (node is ConditionalExpression) {
+      return [..._messages(node.thenExpression), ..._messages(node.elseExpression)];
+    }
+    final text = stringValue(node);
+    return text == null ? const [] : [text];
   }
 
   static bool _isHandler(String name, Expression value) {

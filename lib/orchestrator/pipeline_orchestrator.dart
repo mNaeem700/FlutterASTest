@@ -9,6 +9,7 @@ import 'package:flutterastest/execution/executor_module.dart';
 import 'package:flutterastest/execution/flutter_command.dart';
 import 'package:flutterastest/execution/flutter_test_runner.dart';
 import 'package:flutterastest/analysis/analysis_result.dart';
+import 'package:flutterastest/experiment/cpu_usage.dart';
 import 'package:flutterastest/experiment/environment_info.dart';
 import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/pkg/models/knowledge_graph.dart';
@@ -40,6 +41,7 @@ class PipelineOrchestrator {
         _llmService = llmService;
 
   final Logger _logger = Logger('PipelineOrchestrator');
+  Duration? _cpuAtStart;
   final ModuleRegistry _registry;
 
   /// Injected LLM; when null, Gemini is used with the key from the environment.
@@ -87,8 +89,35 @@ class PipelineOrchestrator {
       ...await const EnvironmentInfo().collect(projectPath: context.projectPath, command: command),
       'configuration': config.toJson(),
     }));
+    await File(p.join(directory.path, 'execution_trace.json')).writeAsString(encoder.convert({
+      'executionId': DateTime.now().toUtc().toIso8601String(),
+      'experimentId': config.runName,
+      'projectName': analysis?.projectInfo.packageName,
+      'executionMode': config.mode.name,
+      'frameworkVersion': '1.0.0',
+      'flutter': command.toString(),
+      'transitions': [
+        for (final trace in context.traces)
+          {
+            'state': trace.stage.name,
+            'startedAt': trace.startedAt.toUtc().toIso8601String(),
+            'finishedAt': trace.finishedAt.toUtc().toIso8601String(),
+            'durationMs': trace.finishedAt.difference(trace.startedAt).inMilliseconds,
+            'status': trace.success ? 'success' : 'failed',
+          },
+      ],
+      'modulesExecuted': context.metrics.modulesExecuted,
+      'modulesFailed': context.metrics.modulesFailed,
+    }));
+
+    final cpuNow = await processCpuTime();
+    final start = _cpuAtStart;
+    final cpu = cpuNow == null || start == null ? null : cpuNow - start;
     await File(p.join(directory.path, 'performance.json')).writeAsString(encoder.convert({
       'totalMs': total.inMilliseconds,
+      'toolCpuMs': cpu?.inMilliseconds,
+      'toolCpuPercent':
+          cpu == null ? null : cpuPercent(cpu, total, Platform.numberOfProcessors),
       'stagesMs': {
         for (final trace in context.traces)
           trace.stage.name: trace.finishedAt.difference(trace.startedAt).inMilliseconds,
@@ -99,12 +128,18 @@ class PipelineOrchestrator {
       'pkgNodes': graph?.nodes.length,
       'pkgEdges': graph?.edges.length,
       'screensPerSecond': total.inMilliseconds == 0 ? 0 : screens * 1000 / total.inMilliseconds,
+      'filesPerSecond':
+          total.inMilliseconds == 0 ? 0 : (analysis?.totalFiles ?? 0) * 1000 / total.inMilliseconds,
+      'widgets': analysis?.widgets.length,
+      'callbacks': analysis?.callbacks.length,
+      'navigationEdges': analysis?.navigation.length,
     }));
   }
 
   Future<PipelineResult> _run(String projectPath, bool verbose, bool promptsOnly,
       ExperimentConfig config, StringBuffer log, FlutterCommand command) async {
     final stopwatch = Stopwatch()..start();
+    _cpuAtStart = await processCpuTime();
 
     final context = PipelineContext(
       projectPath: projectPath,

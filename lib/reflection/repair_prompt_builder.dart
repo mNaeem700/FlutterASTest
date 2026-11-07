@@ -32,7 +32,8 @@ class RepairPromptBuilder {
       out
         ..writeln()
         ..writeln('## Diagnosis')
-        ..writeln('Primary cause: ${analysis.primaryCause}');
+        ..writeln('Primary cause: ${analysis.primaryCause} '
+            '(${(analysis.confidence * 100).round()}% of the failures)');
       for (final recommendation in analysis.recommendations) {
         out.writeln('- $recommendation');
       }

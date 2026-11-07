@@ -42,6 +42,7 @@ void main() {
     expect(login, contains('### Widget tree returned by build()'));
     expect(login, contains('"Sign in"'));
     expect(login, contains("key: 'login'"));
+    expect(login, contains('validator: "Email required"'));
     expect(login, contains('`auth.login`'));
     expect(login, contains('login(String email)'));
     expect(login, isNot(contains('logOut')));

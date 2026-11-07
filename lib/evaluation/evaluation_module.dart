@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import '../analysis/analysis_result.dart';
 import '../execution/lcov.dart';
 import '../execution/models/test_run.dart';
@@ -48,6 +50,16 @@ class EvaluationModule implements PipelineModule {
     final installed = config.installTests
         ? const TestInstaller().install(context.projectPath, outcomes)
         : const <String>[];
+
+    if (installed.isNotEmpty) {
+      try {
+        await Process.run(
+            'dart', ['format', p.join(context.projectPath, 'test', TestInstaller.directoryName)],
+            runInShell: true);
+      } on ProcessException {
+        print('dart format is not available; installed tests are unformatted.');
+      }
+    }
 
     final artifacts = RunArtifacts(config);
     final json = {
@@ -122,6 +134,7 @@ class EvaluationModule implements PipelineModule {
     'assertions_per_test',
     'test_smells',
     'stopping_reason',
+    'maintainability_index',
   ];
 
   static String toCsv(List<ScreenOutcome> outcomes) {
@@ -165,6 +178,7 @@ class EvaluationModule implements PipelineModule {
         (quality?.assertionsPerTest ?? 0).toStringAsFixed(2),
         quality?.totalSmells ?? 0,
         outcome.stoppingReason ?? '',
+        (quality?.maintainabilityIndex ?? 0).toStringAsFixed(2),
       ]);
     }
     return '${rows.map((row) => row.map(_csvCell).join(',')).join('\n')}\n';
@@ -230,6 +244,7 @@ class EvaluationModule implements PipelineModule {
         '${pct(m.details['meanNavigationCoverage'] as double)} / '
         '${pct(m.details['meanStateCoverage'] as double)}');
     print('Assertions per test / flaky  : ${m.details['meanAssertionsPerTest']} / ${m.details['flakyTests']}');
+    print('Maintainability index        : ${m.details['meanMaintainabilityIndex']}');
     print('Tokens prompt / output       : ${m.promptTokens} / ${m.outputTokens}');
     print('LLM time / test time         : ${(m.llmLatencyMs / 1000).toStringAsFixed(1)} s / '
         '${(m.testDurationMs / 1000).toStringAsFixed(1)} s');

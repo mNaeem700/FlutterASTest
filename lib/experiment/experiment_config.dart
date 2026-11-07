@@ -50,6 +50,7 @@ class ExperimentConfig {
     this.tokenBudget = 8000,
     this.flakyRetries = 2,
     this.targetLineCoverage = 0.9,
+    this.targetBranchCoverage = 0.8,
     this.minimumImprovement = 0.02,
     this.label,
     this.model,
@@ -79,6 +80,7 @@ class ExperimentConfig {
 
   /// Reflection stops improving a passing file at this line coverage.
   final double targetLineCoverage;
+  final double targetBranchCoverage;
 
   /// Reflection stops when an iteration improves less than this.
   final double minimumImprovement;
@@ -148,6 +150,7 @@ class ExperimentConfig {
         tokenBudget: tokenBudget ?? this.tokenBudget,
         flakyRetries: flakyRetries ?? this.flakyRetries,
         targetLineCoverage: targetLineCoverage,
+        targetBranchCoverage: targetBranchCoverage,
         minimumImprovement: minimumImprovement,
         label: label ?? this.label,
         model: model ?? this.model,
@@ -174,6 +177,7 @@ class ExperimentConfig {
       reflect: read(reflection, 'enabled') as bool? ?? false,
       maxIterations: read(reflection, 'maxIterations') as int? ?? defaultMaxIterations,
       targetLineCoverage: (read(reflection, 'targetLineCoverage') as num?)?.toDouble() ?? 0.9,
+      targetBranchCoverage: (read(reflection, 'targetBranchCoverage') as num?)?.toDouble() ?? 0.8,
       minimumImprovement: (read(reflection, 'minimumImprovement') as num?)?.toDouble() ?? 0.02,
       model: read(llm, 'model') as String?,
       tokenBudget: read(context, 'tokenBudget') as int? ?? 8000,
@@ -191,6 +195,7 @@ class ExperimentConfig {
         'tokenBudget': tokenBudget,
         'flakyRetries': flakyRetries,
         'targetLineCoverage': targetLineCoverage,
+        'targetBranchCoverage': targetBranchCoverage,
         'minimumImprovement': minimumImprovement,
         'label': label,
         'installTests': installTests,

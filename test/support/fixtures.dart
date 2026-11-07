@@ -31,7 +31,8 @@ List<ScreenContextModel> screenContexts(List<SourceUnit> units, List<String> scr
   ]);
 }
 
-AnalysisResult analysisOf(List<SourceUnit> units, List<String> screens) {
+AnalysisResult analysisOf(List<SourceUnit> units, List<String> screens,
+    {Map<String, String> routes = const {}}) {
   final index = indexOf(units);
   return AnalysisResult(
     totalFiles: units.length,
@@ -45,6 +46,7 @@ AnalysisResult analysisOf(List<SourceUnit> units, List<String> screens) {
     callbacks: const [],
     properties: const [],
     screenContexts: screenContexts(units, screens),
+    routes: routes,
   );
 }
 
@@ -76,7 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(title: const Text('Sign in')),
       body: GetBuilder<AuthController>(builder: (auth) {
         return Column(children: [
-          TextField(decoration: const InputDecoration(hintText: 'Email')),
+          TextFormField(
+            decoration: const InputDecoration(hintText: 'Email'),
+            validator: (v) => v == null || v.isEmpty ? 'Email required' : null,
+          ),
+          TextFormField(validator: Validators.password),
           ElevatedButton(
             key: const Key('login'),
             onPressed: auth.isLoading.value ? null : () async {
@@ -214,6 +220,45 @@ class MobxScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: TextButton(onPressed: () => store.increment(), child: const Text('Add')),
+    );
+  }
+}
+''';
+
+const blocSource = r'''
+abstract class AuthEvent {}
+class LoginPressed extends AuthEvent {}
+class LogoutPressed extends AuthEvent {}
+class ResetPressed extends AuthEvent {}
+class AuthBloc extends Bloc<AuthEvent, int> {
+  AuthBloc() : super(0) {
+    on<LoginPressed>((event, emit) {
+      emit(1);
+      Get.toNamed('/home');
+    });
+    on<LogoutPressed>(_onLogout);
+  }
+  void _onLogout(LogoutPressed event, Emitter<int> emit) {
+    emit(0);
+  }
+}
+class BlocScreen extends StatelessWidget {
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(children: [
+        TextButton(
+          onPressed: () => context.read<AuthBloc>().add(LoginPressed()),
+          child: const Text('In'),
+        ),
+        TextButton(
+          onPressed: () => BlocProvider.of<AuthBloc>(context).add(LogoutPressed()),
+          child: const Text('Out'),
+        ),
+        TextButton(
+          onPressed: () => context.read<AuthBloc>().add(ResetPressed()),
+          child: const Text('Reset'),
+        ),
+      ]),
     );
   }
 }

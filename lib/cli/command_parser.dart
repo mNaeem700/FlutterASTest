@@ -65,7 +65,8 @@ class CommandParser {
       throw CLIException(e.message, ExitCodes.invalidArguments);
     }
 
-    final command = result.rest.isNotEmpty ? result.rest.first : '';
+    final first = result.rest.isNotEmpty ? result.rest.first : '';
+    final command = first == 'analyze' ? 'analyse' : first;
 
     // The analyzer accepts only absolute, normalized paths, so `.`,
     // relative paths and forward slashes on Windows are normalized here.

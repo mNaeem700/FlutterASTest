@@ -53,6 +53,7 @@ class ProjectIndex {
     required this.classes,
     required this.widgetClasses,
     required this.stateClassOf,
+    required this.units,
   });
 
   /// Superclasses that make a class a Flutter widget.
@@ -81,6 +82,9 @@ class ProjectIndex {
 
   /// Widget class name -> its State class.
   final Map<String, ClassRef> stateClassOf;
+
+  /// Every parsed unit of the project.
+  final List<CompilationUnit> units;
 
   factory ProjectIndex.build(List<SourceUnit> units, {required String projectPath}) {
     final classes = <String, List<ClassRef>>{};
@@ -116,6 +120,7 @@ class ProjectIndex {
       classes: classes,
       widgetClasses: widgets,
       stateClassOf: states,
+      units: [for (final source in units) source.unit],
     );
   }
 

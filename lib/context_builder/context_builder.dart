@@ -185,7 +185,7 @@ class ContextBuilder {
       config.delta * (1 / (1 + distance));
 
   static double widgetImportance(KnowledgeGraph graph, PkgNode node) => switch (node.type) {
-        NodeType.screen || NodeType.interaction => 1,
+        NodeType.screen || NodeType.interaction || NodeType.validation => 1,
         NodeType.widget => graph.outgoing(node.id, EdgeType.triggers).isNotEmpty
             ? 1
             : (node.stringList('labels').isNotEmpty || node.property<String>('key') != null)
@@ -233,7 +233,7 @@ class ContextBuilder {
   /// disconnects the tree.
   static bool _hasSelectedChild(KnowledgeGraph graph, String id, Set<String> selected) {
     for (final edge in graph.allOutgoing(id)) {
-      if (const {EdgeType.contains, EdgeType.triggers, EdgeType.declares}.contains(edge.type) &&
+      if (const {EdgeType.contains, EdgeType.triggers, EdgeType.declares, EdgeType.validates}.contains(edge.type) &&
           selected.contains(edge.targetId)) {
         return true;
       }

@@ -7,6 +7,7 @@ enum NodeType {
   stateField,
   route,
   lifecycle,
+  validation,
 }
 
 class PkgNode {

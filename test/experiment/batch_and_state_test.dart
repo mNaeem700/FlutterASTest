@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutterastest/analysis/models/screen_context_model.dart';
 import 'package:flutterastest/evaluation/run_comparison.dart';
 import 'package:flutterastest/experiment/batch_runner.dart';
+import 'package:flutterastest/experiment/cpu_usage.dart';
 import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/llm/caching_llm_service.dart';
 import 'package:flutterastest/llm/llm_service.dart';
@@ -148,11 +149,32 @@ runs: [{mode: pkg}]
       expect(action.stateChanges, ['.value']);
     });
 
+    test('Bloc: an added event follows into its on<Event> handler', () {
+      final interactions =
+          screenContexts([unit('lib/b.dart', blocSource)], ['BlocScreen']).single.interactions;
+      final login = interactions[0].action;
+      expect(login.stateChanges.single, contains('emit'));
+      expect(login.stateChanges.single, contains('on LoginPressed'));
+      expect(login.navigation.single.api, 'Get.toNamed');
+      expect(interactions[1].action.stateChanges.single, contains('on LogoutPressed'));
+      expect(interactions[2].action.stateChanges, isEmpty,
+          reason: 'an event with no handler changes nothing');
+    });
+
     test('MobX: a store method follows into runInAction', () {
       final action = only('lib/m.dart', mobxSource, 'MobxScreen').action;
       expect(action.calls, contains('store.increment'));
       expect(action.stateChanges.single, contains('runInAction'));
     });
+  });
+
+  test('CPU metrics', () async {
+    expect(parseCpuTime('01:02:03'), const Duration(hours: 1, minutes: 2, seconds: 3));
+    expect(parseCpuTime('1-00:00:01'), const Duration(days: 1, seconds: 1));
+    expect(parseCpuTime('2:05.50'), const Duration(minutes: 2, seconds: 5));
+    expect(parseCpuTime('bad'), isNull);
+    expect(cpuPercent(const Duration(seconds: 2), const Duration(seconds: 4), 2), 25);
+    expect(await processCpuTime(), isNotNull);
   });
 
   test('resume flag default stays off for developer runs', () {

@@ -160,11 +160,16 @@ class PromptContextGenerator {
       for (final label in node.stringList('labels')) '"${_escape(label)}"',
       if (node.property<String>('key') != null) "key: '${node.property<String>('key')}'",
       if (events.isNotEmpty) '{${events.join(', ')}}',
+      for (final rule in graph.targets(node.id, EdgeType.validates))
+        'validator: "${_escape(rule.label)}"',
     ];
 
     final connector = isRoot ? '' : (isLast ? '└─ ' : '├─ ');
     out.writeln('$prefix$connector${parts.join(' ')}');
 
+    for (final rule in graph.targets(node.id, EdgeType.validates)) {
+      visited.add(rule.id);
+    }
     final children = graph.visibleChildren(node.id);
     final childPrefix = isRoot ? '' : '$prefix${isLast ? '   ' : '│  '}';
     for (var i = 0; i < children.length; i++) {

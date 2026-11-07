@@ -26,7 +26,12 @@ class ScreenContextAnalyzer {
     for (final screen in screens) {
       final widget = index.widgetClasses[screen.name];
       if (widget == null) continue;
-      results.add(_analyseScreen(index, widget, detector));
+      try {
+        results.add(_analyseScreen(index, widget, detector));
+      } catch (e) {
+        // Doc 8.17: one screen's failure must not end the experiment.
+        print('Warning: skipped screen ${screen.name}: $e');
+      }
     }
 
     results.sort((a, b) => a.name.compareTo(b.name));
@@ -258,14 +263,71 @@ class _DelegateResolver {
       stateChanges.addAll(inner.stateChanges.map((s) => '$s (in $type)'));
     }
 
+    for (final dispatched in action.events) {
+      final separator = dispatched.indexOf('|');
+      final receiver = dispatched.substring(0, separator);
+      final event = dispatched.substring(separator + 1);
+      final type = _variableTypes[receiver] ?? (isTypeName(receiver) ? receiver : null);
+      final ref = type == null ? null : _index.classNamed(type);
+      if (ref == null) continue;
+
+      final handler = _blocHandler(ref.declaration, event);
+      if (handler == null) continue;
+      final inner = ActionSummarizer(
+        methods: methodsOf([ref.declaration]),
+        navigation: _detector,
+        maxDepth: 1,
+      ).summarizeHandler(handler);
+      navigation.addAll(inner.navigation);
+      sites.addAll(inner.sites);
+      effects.addAll(inner.effects.map((e) => '$e (in $type on $event)'));
+      stateChanges.addAll(inner.stateChanges.map((s) => '$s (in $type on $event)'));
+    }
+
     return ActionSummary(
       calls: action.calls,
+      events: action.events,
       navigation: navigation.toList(),
       stateChanges: stateChanges.toList(),
       effects: effects.toList(),
       isAsync: action.isAsync,
       sites: sites.toList(),
     );
+  }
+}
+
+/// Finds the handler `on<Event>(handler)` registers for [event]; a handler
+/// registered for a superclass of the event also receives it.
+extension on _DelegateResolver {
+  Expression? _blocHandler(ClassDeclaration bloc, String event) {
+    final finder = _EventHandlerFinder();
+    bloc.accept(finder);
+    final seen = <String>{};
+    String? current = event;
+    while (current != null && seen.add(current)) {
+      final handler = finder.handlers[current];
+      if (handler != null) return handler;
+      current = _index.classNamed(current)?.declaration.extendsClause?.superclass.name.lexeme;
+    }
+    return null;
+  }
+}
+
+class _EventHandlerFinder extends RecursiveAstVisitor<void> {
+  final handlers = <String, Expression>{};
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    final types = node.typeArguments?.arguments ?? const [];
+    if (node.target == null &&
+        node.methodName.name == 'on' &&
+        types.isNotEmpty &&
+        types.first is NamedType &&
+        node.argumentList.arguments.isNotEmpty) {
+      handlers.putIfAbsent((types.first as NamedType).name.lexeme,
+          () => node.argumentList.arguments.first);
+    }
+    super.visitMethodInvocation(node);
   }
 }
 

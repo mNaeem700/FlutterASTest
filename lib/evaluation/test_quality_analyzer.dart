@@ -1,5 +1,8 @@
+import 'dart:math';
+
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 
 /// Maintainability and quality of a generated test file (RQ3, Doc 16.9).
@@ -9,6 +12,7 @@ class TestQuality {
     required this.linesOfCode,
     required this.assertions,
     required this.smells,
+    this.maintainabilityIndex = 0,
   });
 
   final int tests;
@@ -17,6 +21,9 @@ class TestQuality {
 
   /// Test smell name → number of tests that have it.
   final Map<String, int> smells;
+
+  /// Normalized Maintainability Index in [0, 100]; higher is easier to maintain.
+  final double maintainabilityIndex;
 
   double get assertionsPerTest => tests == 0 ? 0 : assertions / tests;
   int get totalSmells => smells.values.fold(0, (a, b) => a + b);
@@ -28,6 +35,7 @@ class TestQuality {
         'assertionsPerTest': double.parse(assertionsPerTest.toStringAsFixed(2)),
         'smells': smells,
         'totalSmells': totalSmells,
+        'maintainabilityIndex': double.parse(maintainabilityIndex.toStringAsFixed(2)),
       };
 }
 
@@ -65,13 +73,35 @@ class TestQualityAnalyzer {
       if (!bodies.add(body.toSource())) smell('duplicateTest');
     }
 
+    final linesOfCode = code.split('\n').where((l) => l.trim().isNotEmpty).length;
     return TestQuality(
+      maintainabilityIndex: _maintainability(unit, linesOfCode),
       tests: collector.bodies.length,
-      linesOfCode: code.split('\n').where((l) => l.trim().isNotEmpty).length,
+      linesOfCode: linesOfCode,
       assertions: assertions,
       smells: smells,
     );
   }
+}
+
+/// MI = max(0, (171 - 5.2 ln V - 0.23 G - 16.2 ln LOC) * 100 / 171), with
+/// Halstead volume V from the token stream and cyclomatic complexity G from
+/// branching tokens (Oman and Hagemeister, in the normalized form).
+double _maintainability(CompilationUnit unit, int linesOfCode) {
+  const branching = {'if', 'for', 'while', 'case', 'catch', '&&', '||', '??', '?'};
+  final distinct = <String>{};
+  var total = 0, complexity = 1;
+  Token token = unit.beginToken;
+  while (token.type != TokenType.EOF) {
+    total++;
+    distinct.add(token.lexeme);
+    if (branching.contains(token.lexeme)) complexity++;
+    token = token.next!;
+  }
+  if (total == 0 || linesOfCode == 0) return 100;
+  final volume = total * (log(max(distinct.length, 2)) / ln2);
+  final index = 171 - 5.2 * log(volume) - 0.23 * complexity - 16.2 * log(linesOfCode);
+  return (index * 100 / 171).clamp(0, 100).toDouble();
 }
 
 class _TestCollector extends RecursiveAstVisitor<void> {

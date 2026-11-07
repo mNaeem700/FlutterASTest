@@ -80,6 +80,13 @@ void main() {
     expect(s['f1'], closeTo(0.4, 1e-9));
   });
 
+  test('maintainability falls as a test file grows and branches', () {
+    final small = const TestQualityAnalyzer().analyse("void main() { test('a', () { expect(1, 1); }); }");
+    final body = List.generate(40, (i) => "  test('t$i', () { if (true && false) { expect($i, $i); } });").join('\n');
+    final large = const TestQualityAnalyzer().analyse('void main() {\n$body\n}');
+    expect(large.maintainabilityIndex, lessThan(small.maintainabilityIndex));
+  });
+
   test('test quality finds assertions and smells', () {
     final q = const TestQualityAnalyzer().analyse(r'''
 void main() {
@@ -99,5 +106,6 @@ void main() {
     expect(q.smells['sleepyTest'], 1);
     expect(q.smells['conditionalLogic'], 1);
     expect(q.smells['duplicateTest'], 1);
+    expect(q.maintainabilityIndex, inInclusiveRange(1, 100));
   });
 }

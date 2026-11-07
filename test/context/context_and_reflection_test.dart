@@ -1,3 +1,5 @@
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:flutterastest/analysis/flutter_ast/route_table.dart';
 import 'package:flutterastest/context_builder/context_builder.dart';
 import 'package:flutterastest/execution/lcov.dart';
 import 'package:flutterastest/execution/models/test_run.dart';
@@ -143,6 +145,21 @@ void main() {
           analyzer.analyse(failing('boom')).signature);
     });
 
+    test('confidence is the share of failures the primary cause explains', () {
+      const run = TestRun(compiled: true, durationMs: 1, cases: [
+        TestCaseResult(name: 'a', status: TestCaseStatus.failed, message: 'Found 0 widgets'),
+        TestCaseResult(name: 'b', status: TestCaseStatus.failed, message: 'Found 0 widgets'),
+        TestCaseResult(name: 'c', status: TestCaseStatus.failed, message: 'Expected: 1'),
+        TestCaseResult(name: 'd', status: TestCaseStatus.failed, message: 'Expected: 2'),
+        TestCaseResult(name: 'e', status: TestCaseStatus.failed, message: 'Expected: 3'),
+      ]);
+      final analysis = const FailureAnalyzer().analyse(run);
+      expect(analysis.primaryCause, 'finderNotFound');
+      expect(analysis.confidence, closeTo(0.4, 1e-9));
+      expect(analysis.secondaryCauses, ['assertion']);
+      expect(analysis.evidence.first, 'Found 0 widgets');
+    });
+
     test('coverage guidance decides whether a passing file is finished', () {
       const passing = TestRun(
         compiled: true,
@@ -151,6 +168,15 @@ void main() {
         screenCoverage: LineCoverage(linesFound: 10, linesHit: 5),
       );
       expect(ReflectionModule.goalReached(passing, const ExperimentConfig(reflect: true)), isFalse);
+      const covered = TestRun(
+        compiled: true,
+        durationMs: 1,
+        cases: [TestCaseResult(name: 't', status: TestCaseStatus.passed)],
+        screenCoverage: LineCoverage(linesFound: 10, linesHit: 10),
+        branchCoverage: Ratio(1, 2),
+      );
+      expect(ReflectionModule.goalReached(covered, const ExperimentConfig(reflect: true)), isFalse,
+          reason: 'line target met, branch target of 80% not');
       expect(
           ReflectionModule.goalReached(
               passing, const ExperimentConfig(reflect: true, ablation: Ablation.noCoverageGuidance)),
@@ -194,6 +220,64 @@ void main() {
       expect(prompt, contains('## Diagnosis'));
       expect(prompt, contains('finderNotFound'));
       expect(prompt, contains('`Button` onTap'));
+    });
+  });
+
+  group('routes', () {
+    const routes = r'''
+class Routes { static const login = '/login'; }
+final pages = [GetPage(name: Routes.login, page: () => const LoginScreen())];
+final go = GoRoute(path: '/home', builder: (c, s) => const HomeScreen());
+final table = {'/map': (context) => const HomeScreen(), 'other': 3};
+''';
+
+    test('GetX, go_router and route maps are read', () {
+      final unit = parseString(content: routes, throwIfDiagnostics: false).unit;
+      final table = const RouteTable().build([unit], {'LoginScreen', 'HomeScreen'});
+      expect(table, {'Routes.login': 'LoginScreen', '/home': 'HomeScreen', '/map': 'HomeScreen'});
+    });
+
+    test('helper methods and constants resolve the GetX way', () {
+      const helper = r'''
+class RouteHelper {
+  static const String signIn = '/sign-in';
+  static const String home = '/home';
+  static String getSignIn() => signIn;
+  static String getHome() { return '$home?x=1'; }
+  static String other() => missing;
+  static List<GetPage> pages = [
+    GetPage(name: signIn, page: () => const LoginScreen()),
+    GetPage(name: home, page: () => const HomeScreen()),
+  ];
+}
+''';
+      final parsed = parseString(content: helper, throwIfDiagnostics: false).unit;
+      final table = const RouteTable().build([parsed], {'LoginScreen', 'HomeScreen'});
+      expect(table['RouteHelper.signIn'], 'LoginScreen');
+      expect(table['RouteHelper.getSignIn()'], 'LoginScreen');
+      expect(table['RouteHelper.getHome()'], 'HomeScreen');
+      expect(table['/sign-in'], 'LoginScreen');
+      expect(table.containsKey('RouteHelper.other()'), isFalse);
+    });
+
+    test('a named navigation links to the screen and keeps the route name', () {
+      const source = r'''
+class ScreenA extends StatelessWidget {
+  Widget build(BuildContext context) {
+    return Scaffold(body: TextButton(onPressed: () => Get.toNamed('/b'), child: const Text('Go')));
+  }
+}
+class ScreenB extends StatelessWidget {
+  Widget build(BuildContext context) => const Scaffold();
+}
+final pages = [GetPage(name: '/b', page: () => const ScreenB())];
+''';
+      final analysis = analysisOf([unit('lib/a.dart', source)], ['ScreenA', 'ScreenB'], routes: {'/b': 'ScreenB'});
+      final built = PkgBuilder().build(analysis);
+      final a = built.nodesOfType(NodeType.screen).firstWhere((n) => n.label == 'ScreenA');
+      final edge = built.outgoing(a.id, EdgeType.navigatesTo).single;
+      expect(built.getNode(edge.targetId)!.label, 'ScreenB');
+      expect(edge.label, 'Get.toNamed(/b)');
     });
   });
 

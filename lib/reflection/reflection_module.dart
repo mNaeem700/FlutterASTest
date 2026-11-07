@@ -39,7 +39,9 @@ class ReflectionModule implements PipelineModule {
   static bool goalReached(TestRun run, ExperimentConfig config) {
     if (!run.allPassed) return false;
     if (!config.coverageGuided) return true;
-    return (run.screenCoverage?.ratio ?? 0) >= config.targetLineCoverage;
+    final branchesMet = run.branchCoverage.found == 0 ||
+        run.branchCoverage.value >= config.targetBranchCoverage;
+    return (run.screenCoverage?.ratio ?? 0) >= config.targetLineCoverage && branchesMet;
   }
 
   @override

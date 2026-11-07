@@ -2,7 +2,7 @@
 
 Status: open, Sprint S7. These must be resolved or reported in the paper before the tool is frozen in S8.
 
-**Audit coverage so far.** Checked against the code: Doc 9 (identity, serialization, traversal), Doc 10 (scoring, DTO, pruning), Doc 11 (modes, DTO, budget, validation), Doc 12 (configuration, retry), Doc 13 (validation), parts of Doc 14 and Doc 15 (outputs, stopping rules), Doc 16, and Doc 17 (configuration). Docs 1 to 8 and the remaining sections have not been compared line by line.
+**Audit coverage.** Read in full: Docs 1, 2, 3, 8, and Doc 7 from section 7.7 on. Read for requirements: Doc 4 (execution trace), Doc 6 (report and test structure), Doc 9 (identity, serialization, traversal), Doc 10 (scoring, DTO, pruning), Doc 11 (modes, DTO, budget, validation), Doc 12 (configuration, retry), Doc 13 (validation), Doc 14 (outputs, flaky review), Doc 15 (components, algorithm, stopping rules), Doc 16, Doc 17 (configuration). Other sections of Docs 4 to 6 and 12 to 15, mostly rationale, risk matrices and traceability tables, were listed by heading only.
 
 ## Waiting for a decision: LLM settings (Doc 12)
 
@@ -29,19 +29,25 @@ The principal investigator asked to leave the Gemini integration unchanged for n
 | Default output | Not specified | Developer runs write into the project; research runs use `--output` | Product requirement of the principal investigator |
 | Failing tests | Not specified | Only fully passing files are installed in the project | A generation must not turn the project's suite red |
 | Network isolation | Open review item (Doc 14) | `flutter_test`'s default HTTP behaviour, no OS-level block | Stated as a threat to validity |
+| Confidence score | Doc 15.17.4, undefined | Share of the run's failures the primary cause accounts for, measured rather than predicted | The specification gives no formula |
+| CPU usage | Doc 14.18.5, Doc 16.9 | CPU of the tool's own process; `flutter test` children appear as execution time | Per-child CPU is not portable |
 | Flaky tests | Open review item (Doc 14) | Up to 2 reruns of failing files; flaky tests stay failed | Does not inflate results |
 
 ## Not implemented
 
 | Item | Specification | Status |
 |---|---|---|
-| CPU usage metric | Doc 14.18.5, Doc 16.9 | Dart has no portable per-process measure; time and peak memory are recorded |
-| Confidence scores, expected gains | Doc 15.17 | Omitted: the rule-based diagnosis has no measured probability, and invented numbers would not be evidence |
+| Expected gains | Doc 15.17.5 | Omitted: predicting improvement would need a calibrated model, and invented numbers would not be evidence |
 | Line-level HTML coverage | Doc 14.18.4 | `report.html` gives a per-screen summary; per-line needs `genhtml`, which is not available on Windows |
 | Token budget allocation 20/20/50/10 | Doc 11 review item | The budget applies to the context section only; the template has a fixed size |
 | Literal DTO names and fields | Docs 10 to 15 (PromptPackage, ExecutionResult, ...) | Equivalent data under simpler classes; checksums and UUID fields omitted |
-| Plugin architecture, parallel modes | Docs 12 to 14 | Not built; runs are sequential, which is the specified research default |
+| Plugin architecture, parallel analysis | Docs 6, 8, 12 to 14 | Not built; runs are sequential, which is the specified research default |
+| PDF report, figures | Docs 2, 3, 6 | HTML, JSON and CSV exist; publication figures are made in S13 |
+| Folder layout `reports/`, `artifacts/`, `test/unit/` | Doc 6 | One folder per run under `runs/`, with the same content |
+| Vertex types Application, Input, Output; edge RETURNS | Doc 3 | Mapped instead: Method as interaction or member, State as stateField, Service as dependency, Validation as validation; return types are in member signatures |
+| Widget type enum: Material, Cupertino, Inherited | Doc 8.14.10 | Stateless and stateful only; other widgets appear by name in the tree |
+| Estimated API cost, per-DTO hashes in the trace | Doc 4.10.2 | Token counts and artifacts are kept; cost needs provider prices |
+| Partial-result counters for analysis | Doc 8.17 | A failing screen is skipped with a warning in `run.log`; no separate counters |
 | GraphML is present; NetworkX and Neo4j exports | Doc 9.17.1 (optional) | Not built |
-| Bloc event handlers | Not specified | `bloc.add(Event())` is recorded, but the `on<Event>` handler is not followed, so its state changes are not attributed |
 | Mutation score | Doc 16.5 (optional) | Not built; see `research_questions.md` |
 | Docker image | Doc 16.15 | Scheduled for S13 |

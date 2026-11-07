@@ -23,6 +23,7 @@ class RunComparison {
     'state_coverage_pct',
     'assertions_per_test',
     'test_smells',
+    'maintainability_index',
     'prompt_tokens',
     'output_tokens',
   ];
