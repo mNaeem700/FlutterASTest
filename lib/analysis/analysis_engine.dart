@@ -1,14 +1,17 @@
 import 'package:flutterastest/parser/models/parser_result.dart';
+
 import 'analysis_result.dart';
-import 'analyzers/widget_analyzer.dart';
-import 'analyzers/screen_analyzer.dart';
+import 'analyzers/architecture_health_analyzer.dart';
+import 'analyzers/callback_analyzer.dart';
+import 'analyzers/dependency_analyzer.dart';
 import 'analyzers/hierarchy_analyzer.dart';
 import 'analyzers/navigation_analyzer.dart';
-import 'analyzers/dependency_analyzer.dart';
+import 'analyzers/screen_analyzer.dart';
+import 'analyzers/screen_context_analyzer.dart';
 import 'analyzers/state_analyzer.dart';
-import 'analyzers/callback_analyzer.dart';
+import 'analyzers/widget_analyzer.dart';
 import 'analyzers/widget_property_analyzer.dart';
-import 'analyzers/architecture_health_analyzer.dart';
+import 'project_index.dart';
 
 class AnalysisEngine {
   final WidgetAnalyzer _widgetAnalyzer;
@@ -19,6 +22,7 @@ class AnalysisEngine {
   final StateAnalyzer _stateAnalyzer;
   final CallbackAnalyzer _callbackAnalyzer;
   final WidgetPropertyAnalyzer _propertyAnalyzer;
+  final ScreenContextAnalyzer _screenContextAnalyzer;
   final ArchitectureHealthAnalyzer _healthAnalyzer;
 
   const AnalysisEngine({
@@ -30,8 +34,8 @@ class AnalysisEngine {
     StateAnalyzer stateAnalyzer = const StateAnalyzer(),
     CallbackAnalyzer callbackAnalyzer = const CallbackAnalyzer(),
     WidgetPropertyAnalyzer propertyAnalyzer = const WidgetPropertyAnalyzer(),
-    ArchitectureHealthAnalyzer healthAnalyzer =
-        const ArchitectureHealthAnalyzer(),
+    ScreenContextAnalyzer screenContextAnalyzer = const ScreenContextAnalyzer(),
+    ArchitectureHealthAnalyzer healthAnalyzer = const ArchitectureHealthAnalyzer(),
   })  : _widgetAnalyzer = widgetAnalyzer,
         _screenAnalyzer = screenAnalyzer,
         _hierarchyAnalyzer = hierarchyAnalyzer,
@@ -40,37 +44,46 @@ class AnalysisEngine {
         _stateAnalyzer = stateAnalyzer,
         _callbackAnalyzer = callbackAnalyzer,
         _propertyAnalyzer = propertyAnalyzer,
+        _screenContextAnalyzer = screenContextAnalyzer,
         _healthAnalyzer = healthAnalyzer;
 
-  AnalysisResult analyse(ParserResult parserResult, {String? projectPath}) {
-    final widgets = _widgetAnalyzer.analyse(parserResult);
-    final screens = _screenAnalyzer.analyse(widgets);
-    final hierarchies = _hierarchyAnalyzer.analyse(parserResult);
-    final navigation = _navigationAnalyzer.analyse(parserResult);
-    final dependencies = _dependencyAnalyzer.analyse(parserResult, widgets);
-    final states =
-        _stateAnalyzer.analyse(parserResult, projectPath: projectPath);
-    final callbacks = _callbackAnalyzer.analyse(parserResult);
-
-    // 4. 👇 ANALYSE WIDGET PROPERTIES
-    final properties = _propertyAnalyzer.analyse(parserResult);
-
-    final health = _healthAnalyzer.analyse(
-      dependencies: dependencies,
-      navigation: navigation,
+  AnalysisResult analyse(ParserResult parserResult, {required String projectPath}) {
+    final index = ProjectIndex.build(
+      [
+        for (final unit in parserResult.resolvedUnits)
+          SourceUnit(path: unit.path, unit: unit.unit),
+      ],
+      projectPath: projectPath,
     );
+
+    final widgets = _widgetAnalyzer.analyse(index);
+    final navigation = _navigationAnalyzer.analyse(index);
+    final screens = _screenAnalyzer.analyse(
+      index,
+      widgets,
+      navigationTargets: {
+        for (final edge in navigation)
+          if (!edge.isRouteName) edge.toScreen,
+      },
+    );
+    final dependencies = _dependencyAnalyzer.analyse(parserResult, widgets);
 
     return AnalysisResult(
       totalFiles: parserResult.totalFiles,
+      projectInfo: index.info,
       widgets: widgets,
       screens: screens,
-      hierarchy: hierarchies,
+      hierarchy: _hierarchyAnalyzer.analyse(index),
       navigation: navigation,
       dependencies: dependencies,
-      states: states,
-      callbacks: callbacks,
-      properties: properties, // 5. 👇 INCLUDE IN RESULT
-      architectureHealth: health,
+      states: _stateAnalyzer.analyse(parserResult),
+      callbacks: _callbackAnalyzer.analyse(index),
+      properties: _propertyAnalyzer.analyse(parserResult),
+      screenContexts: _screenContextAnalyzer.analyse(index, screens),
+      architectureHealth: _healthAnalyzer.analyse(
+        dependencies: dependencies,
+        navigation: navigation,
+      ),
     );
   }
 }

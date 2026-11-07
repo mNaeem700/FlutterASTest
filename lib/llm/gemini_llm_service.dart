@@ -1,47 +1,131 @@
 import 'dart:async';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+import 'dart:io';
+
 import 'llm_service.dart';
+import 'models/llm_response.dart';
 
 class GeminiLlmService implements LlmService {
-  final String apiKey;
-  late final GenerativeModel _model;
+  GeminiLlmService({
+    required this.apiKey,
+    this.model = 'gemini-3.6-flash',
+    this.maxAttempts = 4,
+    this.retryDelay = const Duration(seconds: 30),
+  });
 
-  GeminiLlmService({required this.apiKey}) {
-    _model = GenerativeModel(
-      // The model successfully verified in your last run
-      model: 'gemini-3.6-flash',
-      apiKey: apiKey,
+  final String apiKey;
+
+  @override
+  final String model;
+  final int maxAttempts;
+
+  /// Wait before retrying, long enough to clear a requests-per-minute block.
+  final Duration retryDelay;
+
+  /// Quota, overload and server errors are worth retrying; other 4xx are not.
+  static const _retryableStatus = {408, 429, 500, 502, 503, 504};
+
+  @override
+  Future<LlmResponse> generate(String prompt) async {
+    final stopwatch = Stopwatch()..start();
+    var lastError = 'no attempt made';
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      final client = HttpClient();
+      try {
+        final uri = Uri.https(
+          'generativelanguage.googleapis.com',
+          '/v1beta/models/$model:generateContent',
+        );
+        final request = await client.postUrl(uri);
+        request.headers.contentType = ContentType.json;
+        request.headers.set('x-goog-api-key', apiKey);
+        request.write(jsonEncode({
+          'contents': [
+            {
+              'parts': [
+                {'text': prompt},
+              ],
+            },
+          ],
+        }));
+
+        final response = await request.close();
+        final body = await response.transform(utf8.decoder).join();
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          lastError = 'HTTP ${response.statusCode}: ${_firstLine(body)}';
+          if (!_retryableStatus.contains(response.statusCode)) break;
+        } else {
+          return _parse(body, stopwatch.elapsedMilliseconds);
+        }
+      } on Exception catch (e) {
+        lastError = _firstLine(e.toString());
+      } finally {
+        client.close(force: true);
+      }
+
+      print('  Gemini call failed (attempt $attempt/$maxAttempts): $lastError');
+      if (attempt < maxAttempts) {
+        print('  Retrying in ${retryDelay.inSeconds} s...');
+        await Future<void>.delayed(retryDelay);
+      }
+    }
+
+    return LlmResponse.failed(
+      model: model,
+      latencyMs: stopwatch.elapsedMilliseconds,
+      error: lastError,
     );
   }
 
-  @override
-  Future<String> generateTest(String promptText) async {
-    // Increase retries to handle the strict free-tier limits
-    int maxRetries = 4;
+  LlmResponse _parse(String body, int latencyMs) {
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    final usage = data['usageMetadata'] as Map<String, dynamic>?;
+    final promptTokens = usage?['promptTokenCount'] as int?;
+    final candidateTokens = usage?['candidatesTokenCount'] as int?;
+    // Thinking tokens are billed as output, so they count as generation effort.
+    final thoughtTokens = usage?['thoughtsTokenCount'] as int? ?? 0;
+    final outputTokens = candidateTokens == null ? null : candidateTokens + thoughtTokens;
 
-    for (int i = 0; i < maxRetries; i++) {
-      try {
-        final content = [Content.text(promptText)];
-        final response = await _model.generateContent(content);
-
-        return response.text ?? '';
-      } catch (e) {
-        print('⚠️ Gemini API Error (Attempt ${i + 1}/$maxRetries):');
-
-        // Print just the first line of the error so your console doesn't get flooded
-        final errorMessage = e.toString().split('\n').first;
-        print('   $errorMessage');
-
-        if (i == maxRetries - 1) {
-          print('❌ Failed to generate test after $maxRetries attempts.');
-          return ''; // Give up after max retries
-        }
-
-        // Wait 15 seconds to clear the "Requests Per Minute" quota block
-        print('⏳ Cooling down for 30 seconds before retrying...');
-        await Future.delayed(const Duration(seconds: 30));
-      }
+    final candidates = data['candidates'] as List<dynamic>? ?? const [];
+    if (candidates.isEmpty) {
+      final feedback = data['promptFeedback'] as Map<String, dynamic>?;
+      return LlmResponse.failed(
+        model: model,
+        latencyMs: latencyMs,
+        error: 'no candidates (blockReason: ${feedback?['blockReason'] ?? 'none'})',
+      );
     }
-    return '';
+
+    final candidate = candidates.first as Map<String, dynamic>;
+    final parts = (candidate['content'] as Map<String, dynamic>?)?['parts'] as List<dynamic>? ??
+        const [];
+    final text = parts
+        .whereType<Map<String, dynamic>>()
+        .where((part) => part['thought'] != true)
+        .map((part) => part['text'] as String? ?? '')
+        .join();
+
+    if (text.trim().isEmpty) {
+      return LlmResponse.failed(
+        model: model,
+        latencyMs: latencyMs,
+        error: 'empty response (finishReason: ${candidate['finishReason']})',
+      );
+    }
+
+    return LlmResponse(
+      text: text,
+      model: model,
+      latencyMs: latencyMs,
+      promptTokens: promptTokens,
+      outputTokens: outputTokens,
+    );
+  }
+
+  static String _firstLine(String text) {
+    final line = text.trim().split('\n').first;
+    return line.length > 300 ? '${line.substring(0, 297)}...' : line;
   }
 }

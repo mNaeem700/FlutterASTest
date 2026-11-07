@@ -83,12 +83,28 @@ FlutterASTest
 Usage:
 
 flutterastest analyse <project>
+flutterastest compare <runDir> <runDir> [...]   statistics between runs
+flutterastest accuracy <screen_contexts.json> <truth.json>   RQ1 precision/recall
 
 Options:
 
 --help
 --version
 --verbose
+--prompts-only          analyse and write prompts, without LLM calls or test runs
+--config <file.yaml>    experiment settings; flags override it
+--mode <m>              context: pkg (default), baseline (raw screen file),
+                        file (screen + imported files), repository (all of lib/)
+--ablation <a>          noPkgLinks, noContextBuilder, noPromptBuilder, noCoverageGuidance
+--label <text>          run name suffix, e.g. rep2 for repetitions
+--model <id>            LLM model id
+--token-budget <n>      context limit in estimated tokens (default 8000)
+--reflect               repair failing tests by feeding run results back to the LLM
+--max-iterations <n>    maximum repair iterations with --reflect (default 5)
+--test-timeout <s>      seconds before a flutter test run is killed (default 300)
+
+Results are written to output/runs/<mode>[-reflect]/. The LLM key is read
+from the GEMINI_API_KEY environment variable.
 ''');
   }
 }

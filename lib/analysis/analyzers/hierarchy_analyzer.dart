@@ -1,57 +1,40 @@
-import 'package:analyzer/dart/ast/ast.dart';
-import 'package:analyzer/dart/ast/visitor.dart';
-import 'package:flutterastest/parser/models/parser_result.dart';
+import '../flutter_ast/widget_call.dart';
+import '../flutter_ast/widget_tree_extractor.dart';
+import '../models/screen_context_model.dart';
 import '../models/widget_edge.dart';
+import '../project_index.dart';
 
+/// Parent → child widget edges from every widget's build() tree, including an
+/// edge from the widget class to each root it returns.
 class HierarchyAnalyzer {
   const HierarchyAnalyzer();
 
-  List<WidgetEdge> analyse(ParserResult parserResult) {
-    final Set<WidgetEdge> edges =
-        {}; // Using a Set to avoid duplicate identical edges
+  List<WidgetEdge> analyse(ProjectIndex index) {
+    final edges = <WidgetEdge>{};
 
-    for (final unitResult in parserResult.resolvedUnits) {
-      final visitor = _HierarchyVisitor();
-      unitResult.unit.accept(visitor);
-      edges.addAll(visitor.edges);
+    for (final widget in index.widgetClasses.values) {
+      final state = index.stateClassOf[widget.name];
+      final methods = methodsOf([
+        if (state != null) state.declaration,
+        widget.declaration,
+      ]);
+      final build = methods['build'];
+      if (build == null) continue;
+
+      final roots = WidgetTreeExtractor(methods: methods, maxNodes: 500).extract(build).roots;
+      void walk(WidgetTreeNode node) {
+        for (final child in node.children) {
+          edges.add(WidgetEdge(parent: node.type, child: child.type));
+          walk(child);
+        }
+      }
+
+      for (final root in roots) {
+        edges.add(WidgetEdge(parent: widget.name, child: root.type));
+        walk(root);
+      }
     }
 
     return edges.toList();
-  }
-}
-
-// Custom AST Visitor to track nested widget constructors
-class _HierarchyVisitor extends RecursiveAstVisitor<void> {
-  final Set<WidgetEdge> edges = {};
-  String? currentParent;
-
-  @override
-  void visitInstanceCreationExpression(InstanceCreationExpression node) {
-    // Get the name of the class being instantiated
-    final className = node.constructorName.type.toSource();
-
-    // Heuristic: Flutter widgets are typically capitalized classes
-    final isCapitalized =
-        className.isNotEmpty && className[0] == className[0].toUpperCase();
-
-    if (isCapitalized) {
-      final previousParent = currentParent;
-
-      // If we are already inside a parent widget, record the edge!
-      if (previousParent != null) {
-        edges.add(WidgetEdge(parent: previousParent, child: className));
-      }
-
-      // Set this widget as the new parent for any nested widgets
-      currentParent = className;
-
-      // Continue traversing down the tree
-      super.visitInstanceCreationExpression(node);
-
-      // Restore the previous parent on the way back up
-      currentParent = previousParent;
-    } else {
-      super.visitInstanceCreationExpression(node);
-    }
   }
 }

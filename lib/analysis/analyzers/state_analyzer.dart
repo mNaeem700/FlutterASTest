@@ -24,63 +24,16 @@ class StateAnalyzer {
 
     final statesList = uniqueStates.values.toList();
 
-    // Print Explainable Formula & Metrics Breakdown for Reviewers
-    _printExplainableComplexity(statesList);
-
-    // Optional Export for Evaluation, Tables & Graphs
-    if (projectPath != null) {
-      _exportStateAnalysis(statesList, projectPath);
-    }
+    _exportStateAnalysis(statesList);
 
     return statesList;
   }
 
-  void _printExplainableComplexity(List<StateModel> states) {
-    print('\n========================================');
-    print('State Complexity Ranking (Explainable)');
-    print('========================================');
-    print('Complexity Formula:');
-    print(
-        'Score = Variables + (Reactive × 3) + (Collections × 2) + (Controllers × 2) + (Repositories × 3) + (Services × 2)\n');
-
-    // Sort descending by complexity score if properties exist, or list them nicely
-    for (int i = 0; i < states.length; i++) {
-      final s = states[i];
-
-      // Calculate metrics on the fly
-      final int totalVars = s.variables.length;
-      final int reactiveCount =
-          s.variables.where((v) => v.category == 'Reactive').length;
-      final int collectionCount =
-          s.variables.where((v) => v.category == 'Collection').length;
-      final int controllerCount =
-          s.variables.where((v) => v.category == 'UI Controller').length;
-      final int repositoryCount =
-          s.variables.where((v) => v.category == 'Repository').length;
-      final int serviceCount =
-          s.variables.where((v) => v.category == 'Service').length;
-
-      final int score = totalVars +
-          (reactiveCount * 3) +
-          (collectionCount * 2) +
-          (controllerCount * 2) +
-          (repositoryCount * 3) +
-          (serviceCount * 2);
-
-      print('${i + 1}. Class : ${s.className}');
-      print('   Variables      : $totalVars');
-      print('   Reactive       : $reactiveCount');
-      print('   Collections    : $collectionCount');
-      print('   Controllers    : $controllerCount');
-      print('   Repositories   : $repositoryCount');
-      print('   Services       : $serviceCount');
-      print('   ------------------------------');
-      print('   Complexity Score : $score\n');
-    }
-  }
-
-  void _exportStateAnalysis(List<StateModel> states, String projectPath) {
+  /// Writes metrics to FlutterASTest's own output folder; the analysed
+  /// project is never modified.
+  void _exportStateAnalysis(List<StateModel> states) {
     try {
+      final outputDir = Directory('output/analysis')..createSync(recursive: true);
       // 1. JSON Export
       final jsonMap = {
         'timestamp': DateTime.now().toIso8601String(),
@@ -131,7 +84,7 @@ class StateAnalyzer {
         }).toList(),
       };
 
-      final jsonFile = File('$projectPath/state_analysis.json');
+      final jsonFile = File('${outputDir.path}/state_analysis.json');
       jsonFile.writeAsStringSync(
           const JsonEncoder.withIndent('  ').convert(jsonMap));
 
@@ -167,11 +120,11 @@ class StateAnalyzer {
                 '$repositoryCount,$serviceCount,$complexity');
       }
 
-      final csvFile = File('$projectPath/state_analysis.csv');
+      final csvFile = File('${outputDir.path}/state_analysis.csv');
       csvFile.writeAsStringSync(csvBuffer.toString());
 
       print(
-          '[INFO] Successfully exported state_analysis.json and state_analysis.csv');
+          'State metrics exported to ${outputDir.path}/state_analysis.{json,csv}');
     } catch (e) {
       print('[WARNING] Failed to export state metrics: $e');
     }

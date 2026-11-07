@@ -1,30 +1,83 @@
-import 'package:flutterastest/orchestrator/pipeline_context.dart';
-import 'package:flutterastest/orchestrator/pipeline_stage.dart';
-import 'package:flutterastest/analysis/analysis_result.dart';
-import 'package:flutterastest/orchestrator/contracts/pipeline_module.dart';
-import 'prompt_context_generator.dart';
+import '../analysis/analysis_result.dart';
+import '../context_builder/context_builder.dart';
+import '../experiment/experiment_config.dart';
+import '../orchestrator/contracts/pipeline_module.dart';
+import '../orchestrator/pipeline_context.dart';
+import '../orchestrator/pipeline_stage.dart';
+import '../pkg/models/knowledge_graph.dart';
+import '../pkg/models/pkg_edge.dart';
+import 'baseline_context_generator.dart';
 import 'models/prompt_context.dart';
+import 'prompt_context_generator.dart';
 
 class PromptModule implements PipelineModule {
-  final PromptContextGenerator _generator;
+  const PromptModule({BaselineContextGenerator baseline = const BaselineContextGenerator()})
+      : _baseline = baseline;
 
-  PromptModule({PromptContextGenerator? generator})
-      : _generator = generator ?? PromptContextGenerator();
+  final BaselineContextGenerator _baseline;
+
+  /// Relationships between entities; without them only local structure is left.
+  static const _linkEdges = {
+    EdgeType.dependsOn,
+    EdgeType.uses,
+    EdgeType.declares,
+    EdgeType.calls,
+    EdgeType.navigatesTo,
+  };
 
   @override
-  get stage => PipelineStage.contextBuilder;
+  PipelineStage get stage => PipelineStage.contextBuilder;
 
   @override
-  Future<PipelineContext> execute(PipelineContext context) async {
-    final analysisResult = context.get<AnalysisResult>();
+  Future<void> execute(PipelineContext context) async {
+    final config = context.get<ExperimentConfig>() ?? const ExperimentConfig();
+    final contexts = config.mode == ContextMode.pkg
+        ? _fromGraph(context, config)
+        : _fromSource(context, config);
+    context.put<List<PromptContext>>(contexts);
+    print('Generated context for ${contexts.length} screens.');
+  }
 
-    if (analysisResult == null) {
+  List<PromptContext> _fromGraph(PipelineContext context, ExperimentConfig config) {
+    final graph = context.get<KnowledgeGraph>();
+    if (graph == null) {
+      throw Exception('KnowledgeGraph missing from PipelineContext!');
+    }
+    print('\nBuilding prompt contexts from the PKG...');
+    print('----------------------------------------');
+
+    final noLinks = config.ablation == Ablation.noPkgLinks;
+    final contexts = PromptContextGenerator(
+      keepDelegated: !noLinks,
+      config: ContextConfiguration(
+        tokenBudget: config.tokenBudget,
+        enabled: config.ablation != Ablation.noContextBuilder,
+        excludedEdges: noLinks ? _linkEdges : const {},
+      ),
+    ).generate(graph);
+    for (final c in contexts) {
+      print('${c.screenName.padRight(32)} ${c.nodesVisited.toString().padLeft(4)} PKG nodes');
+    }
+    return contexts;
+  }
+
+  List<PromptContext> _fromSource(PipelineContext context, ExperimentConfig config) {
+    final analysis = context.get<AnalysisResult>();
+    if (analysis == null) {
       throw Exception('AnalysisResult missing from PipelineContext!');
     }
+    print('\nBuilding ${config.mode.name} contexts from source files...');
+    print('--------------------------------------------------');
 
-    final promptContexts = _generator.generate(analysisResult);
-    context.put<List<PromptContext>>(promptContexts);
-
-    return context;
+    final path = context.projectPath;
+    final contexts = switch (config.mode) {
+      ContextMode.file => _baseline.generateFileLevel(analysis, projectPath: path),
+      ContextMode.repository => _baseline.generateRepository(analysis, projectPath: path),
+      _ => _baseline.generate(analysis, projectPath: path),
+    };
+    for (final c in contexts) {
+      print('${c.screenName.padRight(32)} ${c.context.length.toString().padLeft(8)} chars');
+    }
+    return contexts;
   }
 }

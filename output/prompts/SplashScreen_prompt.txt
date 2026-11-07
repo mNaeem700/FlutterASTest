@@ -1,88 +1,51 @@
-You are an expert Flutter testing engineer.
-Generate Flutter widget tests for the following screen.
+You are an expert Flutter engineer writing widget tests with flutter_test.
 
-Screen:
-SplashScreen
+## Task
+Write one complete, compilable widget test file for the screen `SplashScreen` of the Flutter app `fashion_ecomerce`.
 
-Widget Tree
-SplashScreen
- ├── Scaffold
- │    └── Body
- │         └── ... (Dynamic Content)
+## Project facts
+- Package name: `fashion_ecomerce`
+- State management: none detected (setState)
+- Uses Firebase: yes
+- Mocking libraries available: none, so do not import mockito or mocktail; write small fakes by hand if you need them
 
-State
+## Rules
+1. Reply with exactly one ```dart code block that contains the whole test file, and nothing else.
+2. Import only the libraries listed under "Allowed imports". Never invent other imports or placeholder paths.
+3. Pump the screen inside `MaterialApp` so navigation and theming work.
+4. Build finders from the texts, icons and keys shown in the context where possible.
+5. Write one `testWidgets` that checks the screen renders, plus one per user interaction.
+6. For navigation, call `pumpAndSettle` and assert the destination with `find.byType`.
+7. Do not call real network, storage or Firebase services. If the screen cannot be built without them, test only what renders without them and explain why in a code comment.
+8. Keep tests deterministic: no real waiting; advance timers with `tester.pump(duration)`.
 
-HostryController
+## Allowed imports
+- `import 'package:flutter/material.dart';`
+- `import 'package:flutter_test/flutter_test.dart';`
+- `import 'package:fashion_ecomerce/splish_scrn.dart';`
+- `import 'package:fashion_ecomerce/intro_screen.dart';`
 
-Variables
+## Screen context (from the Program Knowledge Graph)
+### Screen under test
+- Class: `SplashScreen` (StatefulWidget, state class `_SplashScreenState`)
+- Import: `import 'package:fashion_ecomerce/splish_scrn.dart';`
+- Constructor: `const SplashScreen({Key? key})`
 
-_sessions
-_socketService
-chatList
-chatRepo
-isGenerated
-isLoading
-sessionId
+### Widget tree returned by build()
+Scaffold
+└─ Container
 
-AuthController
+### User interactions
+None found.
 
-Variables
+### Lifecycle
+- `initState`: navigates with `Navigator.pushReplacement` to `OnboardingScreen`; shows/starts Timer(const Duration(seconds: 3))
 
-_isDemo
-_isLogout
-_profile
-_profileLoader
-authRepo
-coinPlans
-creditHistory
-creditHistorylist
-currentStep
-emailController
-hideConfirmPassword
-hidePassword
-iap
-isCreditHistoryLoader
-isEmailLoader
-isForgotloader
-isLoading
-isPaymentLoader
-isPaymentloader
-isSignInLoader
-isSignuploader
-nameController
-packs
-passwordController1
-selectedPackIndex
-splashRepo
-updateCoinsLoader
-userCoins
-userData
+### State fields of `_SplashScreenState`
+None.
 
-Callbacks
+### Dependencies
+None detected.
 
-IconButton.onPressed
-→ AuthController.action()
-
-RefreshIndicator.onRefresh
-→ AuthController.action()
-
-SettingsTile.onTap
-→ AuthController.deleteAccount(context)
-
-SettingsTile.onTap
-→ AuthController.logOut(context)
-
-Dependencies
-
-AuthController
-HostryController
-
-Navigation
-
-None
-
-Requirements:
-- Generate widget tests.
-- Cover success and failure cases.
-- Use flutter_test.
-- Use mock dependencies.
+### Navigation
+- `Navigator.pushReplacement` → `OnboardingScreen` (import 'package:fashion_ecomerce/intro_screen.dart')

@@ -89,3 +89,72 @@ Independent Software Engineering Researcher & Flutter Developer
 
 ## 📄 License & Open Source Commitment
 This project is licensed under the MIT License. FlutterASTest is committed to the open-source community; all core parsing algorithms, graph generation mechanics, and execution pipelines will remain free and open for public research and commercial adaptation.
+
+## 🔬 Running the Experiments
+
+Requirements: the target project must already pass `flutter test` with the installed Flutter SDK; a preflight check stops the run otherwise. The LLM key is read from the `GEMINI_API_KEY` environment variable and must never be written into source code.
+
+```bash
+dart pub get
+
+# Analysis and prompts only (no LLM calls, no key needed)
+dart run bin/flutterastest.dart analyse <project> --prompts-only
+
+# Experiment groups (Doc 16.6, 16.8)
+dart run bin/flutterastest.dart analyse <project> --mode baseline            # Group A: raw screen file
+dart run bin/flutterastest.dart analyse <project> --mode file                # Group B: screen + imported files
+dart run bin/flutterastest.dart analyse <project>                            # Group C: PKG context
+dart run bin/flutterastest.dart analyse <project> --reflect                  # Group D: PKG + reflection
+dart run bin/flutterastest.dart analyse <project> --mode repository          # Baseline 4: all of lib/
+
+# Ablations (Doc 16.11); A3 is a run without --reflect
+dart run bin/flutterastest.dart analyse <project> --ablation noPkgLinks            # A1
+dart run bin/flutterastest.dart analyse <project> --ablation noContextBuilder      # A2
+dart run bin/flutterastest.dart analyse <project> --ablation noPromptBuilder       # A4
+dart run bin/flutterastest.dart analyse <project> --reflect --ablation noCoverageGuidance  # A5
+
+# Repetitions, against LLM randomness
+dart run bin/flutterastest.dart analyse <project> --label rep2
+
+# Statistics between runs (Doc 16.10): output/comparison/comparison.{md,json}
+dart run bin/flutterastest.dart compare output/runs/baseline output/runs/pkg
+
+# RQ1 extraction accuracy against a manual annotation
+dart run bin/flutterastest.dart accuracy output/analysis/screen_contexts.json truth.json
+
+# Unit tests
+dart test
+```
+
+Settings can also come from a YAML file with `--config experiment.yaml`; command-line flags override it:
+
+```yaml
+mode: pkg
+ablation: none
+llm:
+  model: gemini-3.6-flash
+reflection:
+  enabled: true
+  maxIterations: 5
+  targetLineCoverage: 0.9
+  minimumImprovement: 0.02
+context:
+  tokenBudget: 8000
+execution:
+  testTimeoutSeconds: 300
+  flakyRetries: 2
+```
+
+Each run writes to `output/runs/<run>/`:
+
+| File | Content |
+|---|---|
+| `prompts/`, `tests/`, `attempts/` | Prompts, final tests, and every attempt's prompt, reply, code and lcov |
+| `results.json`, `results.csv` | Metrics per screen and per attempt, and the run summary |
+| `environment.json` | Commits, Flutter and Dart versions, OS, CPU, RAM, configuration |
+| `performance.json` | Time per stage, peak memory, throughput |
+| `run.log` | The run's console output |
+
+The PKG itself is exported to `output/analysis/pkg.jsonld` and `pkg.graphml`.
+
+**Execution notes.** Generated tests are copied to `test/flutterastest_tmp/` in the target project for each run and deleted afterwards. A failing file is rerun to detect flaky tests, which stay counted as failed. Network access is limited by `flutter_test` itself, whose default `HttpClient` answers every request with HTTP 400; this is not an OS-level block, so code using raw sockets is not stopped.

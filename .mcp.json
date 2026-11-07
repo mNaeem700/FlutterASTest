@@ -1,0 +1,9 @@
+
+{
+  "mcpServers": {
+    "camber-mcp": {
+      "type": "http",
+      "url": "https://camber-mcp.cambercloud.com/mcp"
+    }
+  }
+}

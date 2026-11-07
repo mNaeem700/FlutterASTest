@@ -12,16 +12,16 @@ class DiagnosticExtractor {
 
     final lineInfo = result.lineInfo;
 
-    for (final error in result.errors) {
+    for (final error in result.diagnostics) {
       final location = lineInfo.getLocation(
         error.offset,
       );
 
       diagnostics.add(
         DiagnosticModel(
-          code: error.errorCode.name,
+          code: error.diagnosticCode.name,
           message: error.message,
-          severity: error.errorCode.errorSeverity.name,
+          severity: error.diagnosticCode.severity.name,
           filePath: result.path,
           offset: error.offset,
           length: error.length,

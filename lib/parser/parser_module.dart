@@ -22,7 +22,6 @@ class ParserModule implements PipelineModule {
   final DartFileFinder _fileFinder;
   final ParserEngine _engine;
 
-  @override
   String get name => 'Parser Module';
 
   @override

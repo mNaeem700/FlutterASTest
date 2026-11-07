@@ -1,7 +1,5 @@
 import 'package:meta/meta.dart';
 
-// Note: If you already defined WidgetType in widget_model.dart,
-// you can import it instead of defining it here.
 enum WidgetType {
   stateless,
   stateful,
@@ -13,9 +11,14 @@ class ScreenModel {
     required this.name,
     required this.filePath,
     required this.widgetType,
+    this.detectedBy = const [],
   });
 
   final String name;
   final String filePath;
   final WidgetType widgetType;
+
+  /// Structural evidence that made this widget a screen, e.g.
+  /// "builds a Scaffold", "navigation target".
+  final List<String> detectedBy;
 }

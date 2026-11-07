@@ -1,82 +1,273 @@
-import 'package:flutterastest/prompt_builder/formatter/callback_formatter.dart';
-import 'package:flutterastest/prompt_builder/formatter/dependency_formatter.dart';
-import 'package:flutterastest/prompt_builder/formatter/navigation_formatter.dart';
-import 'package:flutterastest/prompt_builder/formatter/prompt_assembler.dart';
-import 'package:flutterastest/prompt_builder/formatter/state_formatter.dart';
-import 'package:flutterastest/prompt_builder/formatter/widget_tree_formatter.dart';
-// 👇 1. ADDED the missing WidgetTreeFormatter import
-// (Notice: prompt_formatter.dart is completely removed from here!)
-
-import '../analysis/analysis_result.dart';
+import '../context_builder/context_builder.dart';
+import '../pkg/models/knowledge_graph.dart';
+import '../pkg/models/pkg_edge.dart';
+import '../pkg/models/pkg_node.dart';
 import 'models/prompt_context.dart';
 
+/// Renders the context of each screen from the entities the Context Builder
+/// selected from the PKG. Nothing is read from the AST here: if a fact is not
+/// in the package, it is not in the prompt.
 class PromptContextGenerator {
-  final WidgetTreeFormatter _treeFormatter = WidgetTreeFormatter();
-  final StateFormatter _stateFormatter = StateFormatter();
-  final CallbackFormatter _callbackFormatter = CallbackFormatter();
-  final DependencyFormatter _dependencyFormatter = DependencyFormatter();
-  final NavigationFormatter _navFormatter = NavigationFormatter();
-  final PromptAssembler _assembler = PromptAssembler();
+  const PromptContextGenerator({
+    this.config = const ContextConfiguration(),
+    this.keepDelegated = true,
+  });
 
-  List<PromptContext> generate(AnalysisResult analysisResult) {
-    print('\nGenerating Prompt Context...');
-    print('----------------------------');
+  final ContextConfiguration config;
 
-    final List<PromptContext> contexts = [];
-    final Set<String> screenNames = {};
+  /// False hides facts found by following calls into other classes (A1).
+  final bool keepDelegated;
 
-    // Extract valid screen names safely
-    for (var s in analysisResult.screens) {
-      try {
-        final name =
-            (s as dynamic).name ?? (s as dynamic).className ?? s.toString();
-        if (name != "Instance of 'ScreenModel'") {
-          screenNames.add(name.toString());
-        }
-      } catch (_) {
-        screenNames.add(s.toString());
+  List<PromptContext> generate(KnowledgeGraph graph) {
+    final screens = graph.nodesOfType(NodeType.screen)
+      ..sort((a, b) => a.label.compareTo(b.label));
+    final builder = ContextBuilder(config: config);
+    return [
+      for (final screen in screens)
+        _render(
+            graph,
+            screen,
+            builder.build(graph, screen,
+                estimateTokens: (draft) => _render(graph, screen, draft).context.length ~/ 4)),
+    ];
+  }
+
+  PromptContext _render(KnowledgeGraph fullGraph, PkgNode screen, ContextPackage package) {
+    final graph = _SelectedGraph(fullGraph, package);
+    final visited = <String>{screen.id};
+    final out = StringBuffer();
+
+    final importUri = screen.property<String>('importUri');
+    final isStateful = screen.property<bool>('isStateful') ?? false;
+    final stateClass = screen.property<String>('stateClass');
+
+    out.writeln('### Screen under test');
+    out.writeln('- Class: `${screen.label}` '
+        '(${isStateful ? 'StatefulWidget, state class `$stateClass`' : 'StatelessWidget'})');
+    out.writeln(importUri == null
+        ? '- Import: not importable (file is outside lib/: ${screen.property<String>('filePath')})'
+        : "- Import: `import '$importUri';`");
+    for (final constructor in screen.stringList('constructors')) {
+      out.writeln('- Constructor: `$constructor`');
+    }
+
+    out.writeln('\n### Widget tree returned by build()');
+    final roots = graph.visibleChildren(screen.id);
+    if (roots.isEmpty) {
+      out.writeln('Not extractable statically (build() returns a value computed at runtime).');
+    } else {
+      for (var i = 0; i < roots.length; i++) {
+        _renderWidget(graph, roots[i], '', i == roots.length - 1, out, visited, isRoot: true);
+      }
+      if (screen.property<bool>('treeTruncated') == true) {
+        out.writeln('(tree truncated: large screen, deeper widgets omitted)');
       }
     }
 
-    // Build the PromptContext for each screen
-    for (final screenName in screenNames) {
-      // 1. Dependencies (Crucial for filtering state & callbacks)
-      final screenDeps = _dependencyFormatter.extractDependencies(
-          screenName, analysisResult.dependencies);
-
-      // 2. Formatting
-      final widgetTree =
-          _treeFormatter.format(screenName, analysisResult.hierarchy);
-      final state = _stateFormatter.format(analysisResult.states, screenDeps);
-      final callbacks = _callbackFormatter.format(
-          screenName, analysisResult.callbacks, widgetTree, screenDeps);
-      final dependencies = _dependencyFormatter.format(screenDeps);
-      final navigation = _navFormatter.format(
-          screenName, analysisResult.callbacks, widgetTree);
-
-      // 3. Assemble
-      final context = _assembler.assemble(
-        screenName: screenName,
-        widgetTree: widgetTree,
-        state: state,
-        callbacks: callbacks,
-        dependencies: dependencies,
-        navigation: navigation,
-      );
-
-      contexts.add(context);
+    out.writeln('\n### User interactions');
+    final interactions = <String>[];
+    for (final root in roots) {
+      _collectInteractions(graph, root, interactions, visited);
+    }
+    if (interactions.isEmpty) {
+      out.writeln('None found.');
+    } else {
+      for (var i = 0; i < interactions.length; i++) {
+        out.writeln('${i + 1}. ${interactions[i]}');
+      }
     }
 
-    print('\nGenerated context for ${contexts.length} screens.');
-
-    if (contexts.isNotEmpty) {
-      print('\nSample Prompt');
-      print('========================\n');
-      print(contexts.first.prompt);
-      print('\n========================\n');
-      print('Prompt contexts generated successfully.');
+    final hooks = graph.targets(screen.id, EdgeType.hasLifecycle);
+    if (hooks.isNotEmpty) {
+      out.writeln('\n### Lifecycle');
+      for (final hook in hooks) {
+        visited.add(hook.id);
+        final effects = _describeAction(graph, hook, visited);
+        out.writeln('- `${hook.label}`${effects.isEmpty ? '' : ': $effects'}');
+      }
     }
 
-    return contexts;
+    final fields = graph.targets(screen.id, EdgeType.bindsState);
+    out.writeln('\n### State fields${stateClass == null ? '' : ' of `$stateClass`'}');
+    if (fields.isEmpty) {
+      out.writeln('None.');
+    } else {
+      for (final field in fields) {
+        visited.add(field.id);
+        out.writeln('- `${field.property<String>('declaration') ?? field.label}`');
+      }
+    }
+
+    out.writeln('\n### Dependencies');
+    final dependencyEdges = graph.outgoing(screen.id, EdgeType.dependsOn);
+    final usedMembers = graph.targets(screen.id, EdgeType.uses);
+    if (dependencyEdges.isEmpty) {
+      out.writeln('None detected.');
+    } else {
+      for (final edge in dependencyEdges) {
+        final dependency = graph.getNode(edge.targetId)!;
+        visited.add(dependency.id);
+        final origin = dependency.property<bool>('isProjectClass') == true
+            ? 'project class'
+            : 'external class';
+        final how = (edge.label?.isEmpty ?? true) ? 'used directly' : 'obtained via ${edge.label}';
+        out.writeln('- `${dependency.label}` ($origin, $how)');
+        final members = usedMembers.where((m) =>
+            graph.outgoing(dependency.id, EdgeType.declares).any((e) => e.targetId == m.id));
+        for (final member in members) {
+          visited.add(member.id);
+          out.writeln('  - `${member.property<String>('signature') ?? member.label}`');
+        }
+      }
+    }
+
+    out.writeln('\n### Navigation');
+    final navigationImports = <String>{};
+    final destinations = <String>{};
+    for (final edge in graph.outgoing(screen.id, EdgeType.navigatesTo)) {
+      final target = graph.getNode(edge.targetId)!;
+      visited.add(target.id);
+      destinations.add(_describeDestination(target, edge.label, navigationImports));
+    }
+    if (destinations.isEmpty) {
+      out.writeln('None.');
+    } else {
+      for (final destination in destinations) {
+        out.writeln('- $destination');
+      }
+    }
+
+    return PromptContext(
+      screenName: screen.label,
+      screenId: screen.id,
+      importUri: importUri,
+      context: out.toString().trim(),
+      navigationImports: navigationImports.toList()..sort(),
+      nodesVisited: visited.length,
+      metrics: package.metrics(),
+    );
   }
+
+  void _renderWidget(_SelectedGraph graph, PkgNode node, String prefix, bool isLast,
+      StringBuffer out, Set<String> visited,
+      {bool isRoot = false}) {
+    visited.add(node.id);
+    final events = [
+      for (final interaction in graph.targets(node.id, EdgeType.triggers)) interaction.label,
+    ];
+    final parts = <String>[
+      node.label,
+      for (final label in node.stringList('labels')) '"${_escape(label)}"',
+      if (node.property<String>('key') != null) "key: '${node.property<String>('key')}'",
+      if (events.isNotEmpty) '{${events.join(', ')}}',
+    ];
+
+    final connector = isRoot ? '' : (isLast ? '└─ ' : '├─ ');
+    out.writeln('$prefix$connector${parts.join(' ')}');
+
+    final children = graph.visibleChildren(node.id);
+    final childPrefix = isRoot ? '' : '$prefix${isLast ? '   ' : '│  '}';
+    for (var i = 0; i < children.length; i++) {
+      _renderWidget(graph, children[i], childPrefix, i == children.length - 1, out, visited);
+    }
+  }
+
+  void _collectInteractions(
+      _SelectedGraph graph, PkgNode widget, List<String> out, Set<String> visited) {
+    for (final interaction in graph.targets(widget.id, EdgeType.triggers)) {
+      visited.add(interaction.id);
+      final labels = widget.stringList('labels');
+      final key = widget.property<String>('key');
+      final inner = labels.isEmpty ? _firstLabel(graph, widget) : null;
+      final subject = [
+        '`${widget.label}`',
+        if (labels.isNotEmpty) '"${_escape(labels.first)}"',
+        if (inner != null) 'containing "${_escape(inner)}"',
+        if (key != null) "(key: '$key')",
+      ].join(' ');
+      final action = _describeAction(graph, interaction, visited);
+      out.add('$subject — `${interaction.label}`'
+          '${action.isEmpty ? ': no statically visible effect' : ': $action'}');
+    }
+    for (final child in graph.visibleChildren(widget.id)) {
+      _collectInteractions(graph, child, out, visited);
+    }
+  }
+
+  /// Keeps multi-line texts on one line so the tree stays readable; the
+  /// escapes match how the text must be written in a Dart finder.
+  static String _escape(String text) =>
+      text.replaceAll('\\', r'\\').replaceAll('\n', r'\n').replaceAll('"', r'\"');
+
+  /// First label inside [widget], skipping descendants that handle events
+  /// themselves: their text identifies them, not the wrapper.
+  String? _firstLabel(_SelectedGraph graph, PkgNode widget) {
+    for (final child in graph.visibleChildren(widget.id)) {
+      if (graph.outgoing(child.id, EdgeType.triggers).isNotEmpty) continue;
+      final labels = child.stringList('labels');
+      if (labels.isNotEmpty) return labels.first;
+      final nested = _firstLabel(graph, child);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  String _describeAction(_SelectedGraph graph, PkgNode action, Set<String> visited) {
+    final parts = <String>[];
+    final calls = action.stringList('calls');
+    if (calls.isNotEmpty) parts.add('calls ${calls.map((c) => '`$c`').join(', ')}');
+    for (final edge in graph.outgoing(action.id, EdgeType.navigatesTo)) {
+      final target = graph.getNode(edge.targetId)!;
+      visited.add(target.id);
+      parts.add(target.type == NodeType.screen
+          ? 'navigates with `${edge.label}` to `${target.label}`'
+          : target.property<bool>('isPrevious') == true
+              ? 'goes back with `${edge.label}`'
+              : 'navigates with `${edge.label}` to route "${target.label}"');
+    }
+    bool local(String fact) => keepDelegated || !fact.contains(' (in ');
+    final stateChanges = action.stringList('stateChanges').where(local).toList();
+    if (stateChanges.isNotEmpty) parts.add('changes state (${stateChanges.join(', ')})');
+    final effects = action.stringList('effects').where(local).toList();
+    if (effects.isNotEmpty) parts.add('shows/starts ${effects.join(', ')}');
+    if (action.property<bool>('isAsync') == true) parts.add('async');
+    return parts.join('; ');
+  }
+
+  String _describeDestination(PkgNode target, String? api, Set<String> imports) {
+    if (target.type == NodeType.screen) {
+      final uri = target.property<String>('importUri');
+      if (uri != null) imports.add(uri);
+      return '`$api` → `${target.label}`${uri == null ? '' : " (import '$uri')"}';
+    }
+    if (target.property<bool>('isPrevious') == true) return '`$api` → previous route';
+    return target.property<bool>('isRouteName') == true
+        ? '`$api` → route "${target.label}"'
+        : '`$api` → `${target.label}` (not analysed as a screen)';
+  }
+}
+
+/// The PKG as the renderer sees it: only selected nodes, with collapsed layout
+/// wrappers replaced by their children.
+class _SelectedGraph {
+  _SelectedGraph(this._graph, this._package);
+
+  final KnowledgeGraph _graph;
+  final ContextPackage _package;
+
+  List<PkgEdge> outgoing(String id, EdgeType type) => [
+        for (final edge in _graph.outgoing(id, type))
+          if (_package.selected.contains(edge.targetId)) edge,
+      ];
+
+  List<PkgNode> targets(String id, EdgeType type) => [
+        for (final edge in outgoing(id, type)) _graph.getNode(edge.targetId)!,
+      ];
+
+  PkgNode? getNode(String id) => _graph.getNode(id);
+
+  List<PkgNode> visibleChildren(String id) => [
+        for (final child in targets(id, EdgeType.contains))
+          if (_package.collapsed.contains(child.id)) ...visibleChildren(child.id) else child,
+      ];
 }

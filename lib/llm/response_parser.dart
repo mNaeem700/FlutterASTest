@@ -1,14 +1,15 @@
 class ResponseParser {
-  /// Extracts pure Dart code enclosed within ```dart ... ``` markdown blocks.
+  /// Extracts the Dart code of the first fenced code block (```dart or a bare
+  /// ```), or the whole reply when it contains no fence.
   String extractDartCode(String rawResponse) {
-    final regex = RegExp(r'```dart\s*\n?(.*?)\n?```', dotAll: true);
-    final match = regex.firstMatch(rawResponse);
+    final fenced = RegExp(r'```[ \t]*(?:dart)?[ \t]*\r?\n(.*?)```', dotAll: true);
+    final match = fenced.firstMatch(rawResponse);
+    if (match != null) return match.group(1)!.trim();
 
-    if (match != null && match.groupCount >= 1) {
-      return match.group(1)!.trim();
-    }
+    // An unterminated fence happens when the reply is cut off.
+    final open = RegExp(r'```[ \t]*(?:dart)?[ \t]*\r?\n').firstMatch(rawResponse);
+    if (open != null) return rawResponse.substring(open.end).trim();
 
-    // Fallback: If no markdown code block is found, return trimmed string
     return rawResponse.trim();
   }
 }

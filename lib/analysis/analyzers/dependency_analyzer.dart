@@ -236,9 +236,13 @@ class _DependencyVisitor extends RecursiveAstVisitor<void> {
     String to = fallbackName.replaceAll('?', '');
     if (dartType != null) {
       try {
-        to = dartType.getDisplayString(withNullability: false);
+        // Unresolved types display as "InvalidType"; the source name is
+        // more accurate than counting them all as one class.
+        final display = dartType.getDisplayString().replaceAll('?', '');
+        if (display != 'InvalidType') to = display;
       } catch (_) {}
     }
+    if (to == 'InvalidType' || to == 'dynamic') return;
 
     if (to.isEmpty || to == currentClass) return;
     if (to == '${currentClass}State' || to == '_${currentClass}State') return;

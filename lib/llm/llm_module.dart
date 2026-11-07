@@ -1,21 +1,31 @@
 import 'dart:io';
+
+import '../experiment/experiment_config.dart';
+import '../experiment/models/screen_outcome.dart';
+import '../experiment/run_artifacts.dart';
 import '../orchestrator/contracts/pipeline_module.dart';
 import '../orchestrator/pipeline_context.dart';
 import '../orchestrator/pipeline_stage.dart';
-import 'llm_service.dart';
+import '../prompt_optimizer/models/test_prompt.dart';
 import 'gemini_llm_service.dart';
+import 'llm_service.dart';
 import 'response_parser.dart';
 
+/// Generates the initial test file (iteration 0) of every screen.
 class LlmModule implements PipelineModule {
   static const apiKeyVariable = 'GEMINI_API_KEY';
 
-  final LlmService _llmService;
+  LlmModule({
+    LlmService? llmService,
+    this.requestInterval = const Duration(seconds: 10),
+  }) : llmService = llmService ?? GeminiLlmService(apiKey: readApiKeyFromEnvironment());
 
-  LlmModule({LlmService? llmService})
-      : _llmService =
-            llmService ?? GeminiLlmService(apiKey: _readApiKeyFromEnvironment());
+  final LlmService llmService;
 
-  static String _readApiKeyFromEnvironment() {
+  /// Pause between calls so free-tier rate limits are not hit.
+  final Duration requestInterval;
+
+  static String readApiKeyFromEnvironment() {
     final key = Platform.environment[apiKeyVariable];
     if (key == null || key.trim().isEmpty) {
       throw StateError(
@@ -31,65 +41,49 @@ class LlmModule implements PipelineModule {
 
   @override
   Future<void> execute(PipelineContext context) async {
-    print('\nGenerating Widget Tests via LLM...');
-    print('------------------------------------');
+    print('\nGenerating widget tests via LLM (${llmService.model})...');
+    print('------------------------------------------------------');
 
-    final promptDir = Directory('output/prompts');
-    final outputDir = Directory('generated_tests');
-
-    if (!await promptDir.exists()) {
-      throw Exception(
-        'Prompts directory output/prompts not found. Run PromptOptimizerModule first.',
-      );
+    final config = context.get<ExperimentConfig>() ?? const ExperimentConfig();
+    final prompts = context.get<List<TestPrompt>>();
+    if (prompts == null) {
+      throw Exception('TestPrompts missing from PipelineContext!');
     }
 
-    if (!await outputDir.exists()) {
-      await outputDir.create(recursive: true);
-    }
-
+    final artifacts = RunArtifacts(config);
     final parser = ResponseParser();
-    final promptFiles = promptDir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('_prompt.txt'))
-        .toList();
+    final outcomes = <ScreenOutcome>[];
 
-    if (promptFiles.isEmpty) {
-      print('No prompt files found in output/prompts/');
-      return;
-    }
+    for (var i = 0; i < prompts.length; i++) {
+      final prompt = prompts[i];
+      stdout.write('[${i + 1}/${prompts.length}] ${prompt.screenName} ... ');
 
-    int generatedCount = 0;
+      final response = await llmService.generate(prompt.text);
+      final attempt = Attempt(
+        iteration: 0,
+        generation: response,
+        code: response.succeeded ? parser.extractDartCode(response.text) : '',
+      );
+      final outcome = ScreenOutcome(
+        screenName: prompt.screenName,
+        screenFile: prompt.screenFile,
+        prompt: prompt.text,
+      )..attempts.add(attempt);
+      outcomes.add(outcome);
+      await artifacts.saveAttempt(outcome, attempt, prompt.text);
 
-    for (final file in promptFiles) {
-      final fileName = file.uri.pathSegments.last;
-      final screenName = fileName.replaceAll('_prompt.txt', '');
+      print(response.succeeded
+          ? '${response.promptTokens ?? '?'} prompt / ${response.outputTokens ?? '?'} output tokens, '
+              '${(response.latencyMs / 1000).toStringAsFixed(1)} s'
+          : 'FAILED: ${response.error}');
 
-      print('Calling LLM for: $screenName...');
-
-      final promptText = await file.readAsString();
-
-      // 1. Request test code from LLM
-      final rawResponse = await _llmService.generateTest(promptText);
-
-      // 2. Parse out clean Dart code
-      final cleanCode = parser.extractDartCode(rawResponse);
-
-      // 3. Save as _test.dart file
-      final testFile = File('${outputDir.path}/${screenName}_test.dart');
-      await testFile.writeAsString(cleanCode);
-
-      generatedCount++;
-
-      // Base delay to spread out the 25 requests and avoid rate limits
-      if (generatedCount < promptFiles.length) {
-        print('Waiting 10 seconds to respect API rate limits...');
-        await Future.delayed(const Duration(seconds: 10));
+      if (i < prompts.length - 1 && requestInterval > Duration.zero) {
+        await Future<void>.delayed(requestInterval);
       }
     }
 
-    print(
-      '\nSuccessfully generated and saved $generatedCount test files to ${outputDir.path}/',
-    );
+    context.put<List<ScreenOutcome>>(outcomes);
+    final generated = outcomes.where((o) => o.last!.generation.succeeded).length;
+    print('\nGenerated $generated of ${outcomes.length} test files into ${artifacts.root}');
   }
 }

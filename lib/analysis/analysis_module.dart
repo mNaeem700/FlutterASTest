@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutterastest/analysis/models/screen_context_model.dart';
+import 'package:flutterastest/analysis/models/screen_model.dart';
 import 'package:flutterastest/orchestrator/pipeline_context.dart';
 import 'package:flutterastest/orchestrator/pipeline_stage.dart';
 import 'package:flutterastest/parser/models/parser_result.dart';
@@ -26,15 +31,26 @@ class AnalysisModule implements PipelineModule {
       throw Exception('ParserResult missing from PipelineContext!');
     }
 
-    // 👇 FIXED: projectPath is a direct property on the context object!
-    final projectPath = context.projectPath;
-
     final analysisResult =
-        _engine.analyse(parserResult, projectPath: projectPath);
+        _engine.analyse(parserResult, projectPath: context.projectPath);
+
+    final info = analysisResult.projectInfo;
+    print('Package : ${info.packageName}');
+    print('State management : '
+        '${info.stateManagement.isEmpty ? 'none detected' : info.stateManagement.join(', ')}');
+    print('Mocking libraries : '
+        '${info.mockingLibraries.isEmpty ? 'none' : info.mockingLibraries.join(', ')}\n');
 
     print('Files received : ${analysisResult.totalFiles}');
     print('Widgets discovered : ${analysisResult.widgets.length}');
     print('Screens discovered : ${analysisResult.screens.length}');
+    final byReason = <String, int>{};
+    for (final screen in analysisResult.screens.whereType<ScreenModel>()) {
+      for (final reason in screen.detectedBy) {
+        byReason[reason] = (byReason[reason] ?? 0) + 1;
+      }
+    }
+    byReason.forEach((reason, count) => print('  $reason : $count'));
     print('Hierarchy edges : ${analysisResult.hierarchy.length}');
     print('Navigation discovered : ${analysisResult.navigation.length}');
     print('Dependencies discovered : ${analysisResult.dependencies.length}\n');
@@ -382,9 +398,39 @@ class AnalysisModule implements PipelineModule {
       }
     }
 
+    _printScreenContexts(analysisResult.screenContexts);
+    _exportScreenContexts(analysisResult);
+
     print('AnalysisResult created successfully.');
     context.put<AnalysisResult>(analysisResult);
 
-    // 👇 FIXED: Removed the "return context;" line entirely since we return void now.
+  }
+
+  void _printScreenContexts(List<ScreenContextModel> contexts) {
+    print('Screen Context Extraction');
+    print('-------------------------');
+    print('${'Screen'.padRight(32)} Widgets  Interactions  Deps  Nav');
+    for (final screen in contexts) {
+      print('${screen.name.padRight(32)} '
+          '${'${screen.widgetCount}${screen.treeTruncated ? '+' : ''}'.padLeft(7)}  '
+          '${'${screen.interactions.length}'.padLeft(12)}  '
+          '${'${screen.dependencies.length}'.padLeft(4)}  '
+          '${'${screen.navigation.length}'.padLeft(3)}');
+    }
+    final empty = contexts.where((c) => c.widgetCount == 0).map((c) => c.name);
+    if (empty.isNotEmpty) {
+      print('\nScreens with no extractable widget tree: ${empty.join(', ')}');
+    }
+    print('');
+  }
+
+  void _exportScreenContexts(AnalysisResult result) {
+    final file = File('output/analysis/screen_contexts.json');
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
+      'project': result.projectInfo.toJson(),
+      'screens': result.screenContexts.map((c) => c.toJson()).toList(),
+    }));
+    print('Screen contexts exported to ${file.path}\n');
   }
 }

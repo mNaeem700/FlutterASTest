@@ -1,28 +1,13 @@
 import 'dart:async';
 
+import 'models/llm_response.dart';
+
 abstract class LlmService {
-  Future<String> generateTest(String promptText);
-}
+  /// Model identifier recorded with every result.
+  String get model;
 
-/// Mock LLM implementation for local testing and pipeline validation.
-class MockLlmService implements LlmService {
-  @override
-  Future<String> generateTest(String promptText) async {
-    // Simulate API network latency
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    return '''
-```dart
-import 'package:flutter_test/flutter_test.dart';
-
-void main() {
-  group('Generated Widget Test', () {
-    testWidgets('Should render screen correctly', (WidgetTester tester) async {
-      // Setup & Render
-      expect(find.byType(Placeholder), findsNothing);
-    });
-  });
-}
-''';
-  }
+  /// Sends [prompt] and returns the reply. Never throws for provider errors;
+  /// a failed call is returned as [LlmResponse.failed] so one screen cannot
+  /// abort the whole experiment.
+  Future<LlmResponse> generate(String prompt);
 }

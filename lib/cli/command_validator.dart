@@ -24,6 +24,21 @@ class CommandValidator {
         _validateAnalyse(options);
         break;
 
+      case 'compare':
+        if (options.arguments.length < 2) {
+          throw const CLIException(
+              'compare needs at least two run directories.', ExitCodes.invalidArguments);
+        }
+        break;
+
+      case 'accuracy':
+        if (options.arguments.length != 2) {
+          throw const CLIException(
+              'accuracy needs the screen contexts file and the ground truth file.',
+              ExitCodes.invalidArguments);
+        }
+        break;
+
       default:
         throw CLIException(
           'Unknown command: ${options.command}',

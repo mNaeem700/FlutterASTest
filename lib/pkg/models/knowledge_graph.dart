@@ -1,37 +1,52 @@
 import 'pkg_edge.dart';
 import 'pkg_node.dart';
 
+/// Program Knowledge Graph: typed nodes and typed, ordered directed edges.
 class KnowledgeGraph {
   final Map<String, PkgNode> _nodes = {};
   final List<PkgEdge> _edges = [];
+  final Set<String> _edgeKeys = {};
+  final Map<String, List<PkgEdge>> _outgoing = {};
 
-  // Getters
-  List<PkgNode> get nodes => _nodes.values.toList();
-  List<PkgEdge> get edges => _edges;
+  List<PkgNode> get nodes => List.unmodifiable(_nodes.values);
+  List<PkgEdge> get edges => List.unmodifiable(_edges);
 
-  void addNode(PkgNode node) {
-    _nodes[node.id] = node;
-  }
+  /// Adds [node]; the first node with a given id wins.
+  PkgNode addNode(PkgNode node) => _nodes.putIfAbsent(node.id, () => node);
 
   void addEdge(PkgEdge edge) {
-    if (!_edges.any((e) =>
-        e.sourceId == edge.sourceId &&
-        e.targetId == edge.targetId &&
-        e.type == edge.type)) {
+    if (!_nodes.containsKey(edge.sourceId) || !_nodes.containsKey(edge.targetId)) {
+      throw StateError('Edge $edge references a missing node.');
+    }
+    if (_edgeKeys.add(edge.key)) {
       _edges.add(edge);
+      _outgoing.putIfAbsent(edge.sourceId, () => []).add(edge);
     }
   }
 
   PkgNode? getNode(String id) => _nodes[id];
 
-  /// Core research feature: Query the graph!
-  /// Example: Find everything a specific screen "uses" (Dependencies)
-  List<PkgNode> getRelatedNodes(String sourceId, EdgeType edgeType) {
-    final relatedEdges =
-        _edges.where((e) => e.sourceId == sourceId && e.type == edgeType);
-    return relatedEdges
-        .map((e) => _nodes[e.targetId])
-        .whereType<PkgNode>()
-        .toList();
+  /// Outgoing edges of [sourceId] of [type], in sibling order.
+  List<PkgEdge> outgoing(String sourceId, EdgeType type) {
+    final edges = (_outgoing[sourceId] ?? const <PkgEdge>[])
+        .where((e) => e.type == type)
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    return edges;
   }
+
+  /// All outgoing edges of [sourceId], in insertion order.
+  List<PkgEdge> allOutgoing(String sourceId) => _outgoing[sourceId] ?? const [];
+
+  List<PkgNode> targets(String sourceId, EdgeType type) => [
+        for (final edge in outgoing(sourceId, type)) _nodes[edge.targetId]!,
+      ];
+
+  List<PkgNode> nodesOfType(NodeType type) =>
+      _nodes.values.where((n) => n.type == type).toList();
+
+  Map<String, dynamic> toJson() => {
+        'nodes': _nodes.values.map((n) => n.toJson()).toList(),
+        'edges': _edges.map((e) => e.toJson()).toList(),
+      };
 }
