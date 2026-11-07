@@ -103,6 +103,11 @@ class Other { bool b = x > 1; }
           {'temperature': 0.2, 'topP': 1.0, 'seed': 7, 'maxOutputTokens': 4096});
     });
 
+    test('a daily quota stops at once instead of waiting for hours', () async {
+      expect(GeminiLlmService.retryDelayIn('{"retryDelay": "45188s"}')! > GeminiLlmService.maxRetryWait,
+          isTrue);
+    });
+
     test('Gemini errors are readable and its retry delay is respected', () {
       const body = '{\n "error": {"code": 429, "message": "Quota exceeded for requests.", '
           '"details": [{"retryDelay": "35s"}]}\n}';

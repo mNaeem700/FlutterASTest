@@ -25,6 +25,9 @@ class GeminiLlmService implements LlmService {
   /// Wait before retrying, long enough to clear a requests-per-minute block.
   final Duration retryDelay;
 
+  /// The longest wait worth sitting through before giving up.
+  static const maxRetryWait = Duration(minutes: 2);
+
   /// Quota, overload and server errors are worth retrying; other 4xx are not.
   static const _retryableStatus = {408, 429, 500, 502, 503, 504};
 
@@ -72,6 +75,11 @@ class GeminiLlmService implements LlmService {
         if (response.statusCode < 200 || response.statusCode >= 300) {
           lastError = 'HTTP ${response.statusCode}: ${errorMessage(body)}';
           wait = retryDelayIn(body) ?? retryDelay;
+          // A long delay means a daily quota; waiting would look like a hang.
+          if (wait > maxRetryWait) {
+            lastError = '$lastError (Gemini asks to wait ${_describe(wait)})';
+            break;
+          }
           if (!_retryableStatus.contains(response.statusCode)) break;
         } else {
           return _parse(body, stopwatch.elapsedMilliseconds);
@@ -155,6 +163,10 @@ class GeminiLlmService implements LlmService {
     }
     return _firstLine(body);
   }
+
+  static String _describe(Duration wait) => wait.inHours > 0
+      ? 'about ${wait.inHours} hours ${wait.inMinutes % 60} minutes'
+      : '${wait.inMinutes} minutes';
 
   /// How long the provider asks to wait, such as `"retryDelay": "35s"`.
   static Duration? retryDelayIn(String body) {

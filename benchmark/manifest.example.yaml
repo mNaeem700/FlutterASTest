@@ -14,7 +14,8 @@ seed: 42
 maxOutputTokens: 8192       # Doc 12 says 4096; long test files can need more
 requestTimeoutSeconds: 300
 
-# Rate and quota control.
+# Rate and quota control. Gemini's free tier can be as low as 20 requests a day
+# for a model; check your limit at https://ai.dev/rate-limit before a long batch.
 requestIntervalSeconds: 10  # pause between LLM calls
 screensPerApp: 10           # evenly spaced sample per app; remove to test all
 
