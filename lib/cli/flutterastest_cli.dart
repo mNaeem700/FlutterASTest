@@ -86,8 +86,10 @@ Usage:
 flutterastest init                    first-time setup
 flutterastest doctor [project]        check Flutter, project and LLM setup
                                       (--test-llm also makes one small LLM call)
-flutterastest generate [project]      analyse the project, then write and run tests
+flutterastest generate [project]      write and run widget tests for screens
                                       (also: analyse; default project: this folder)
+flutterastest unit [project]          write and run unit tests for classes and functions
+flutterastest targets [project]       list screens as JSON (--kind unit: classes)
 flutterastest config list | get <k> | set <k> <v> | unset <k> |
                      set-key <provider> | remove-key <provider>
 flutterastest batch <manifest.yaml>   all projects x setups x repetitions, resumable
@@ -112,7 +114,7 @@ Options:
 --label <text>          run name suffix, e.g. rep2 for repetitions
 --model <id>            LLM model id
 --token-budget <n>      context limit in estimated tokens (default 8000)
---screen <name>         only this screen; repeat for more
+--screen <name>         only this screen or class; repeat for more
 --max-screens <n>       evenly spaced sample, to stay within a quota
 --request-interval <s>  pause between LLM calls
 --provider <p>          local (default, code stays on this machine), gemini, or openai

@@ -9,6 +9,7 @@ import '../cli/exit_codes.dart';
 import '../execution/flutter_command.dart';
 import '../experiment/experiment_config.dart';
 import '../llm/llm_factory.dart';
+import '../orchestrator/pipeline_orchestrator.dart';
 import 'user_config.dart';
 
 /// False for pipes, redirects and closed input, where asking the check itself
@@ -228,6 +229,37 @@ class Doctor {
       return DoctorCheck(name, false, 'no server at $baseUrl', fix: install);
     } finally {
       client.close(force: true);
+    }
+  }
+}
+
+/// `flutterastest targets`: what tests can be written for, as JSON, so a person
+/// or the extension can choose one screen or class.
+class TargetLister {
+  const TargetLister();
+
+  Future<void> run(String projectPath, {required bool unit}) async {
+    final temp = Directory.systemTemp.createTempSync('flutterastest_targets');
+    try {
+      await runZoned(
+        () => PipelineOrchestrator().start(
+          projectPath: projectPath,
+          verbose: false,
+          promptsOnly: true,
+          config: ExperimentConfig(outputRoot: temp.path),
+        ),
+        zoneSpecification: ZoneSpecification(print: (self, parent, zone, line) {}),
+      );
+      final analysis = p.join(temp.path, 'analysis');
+      final List<dynamic> targets = unit
+          ? jsonDecode(File(p.join(analysis, 'unit_targets.json')).readAsStringSync()) as List
+          : (jsonDecode(File(p.join(analysis, 'screen_contexts.json')).readAsStringSync())
+              as Map)['screens'] as List;
+      stdout.writeln(jsonEncode([
+        for (final target in targets) {'name': target['name'], 'file': target['filePath']},
+      ]));
+    } finally {
+      temp.deleteSync(recursive: true);
     }
   }
 }

@@ -49,7 +49,7 @@ class EvaluationModule implements PipelineModule {
         RunMetrics.compute(outcomes, mergedCoverage: LcovReport.merge(reports).total);
 
     final installed = config.installTests
-        ? const TestInstaller().install(context.projectPath, outcomes)
+        ? const TestInstaller().install(context.projectPath, outcomes, unit: config.kind == TestKind.unit)
         : const <String>[];
 
     if (installed.isNotEmpty) {
@@ -103,10 +103,10 @@ class EvaluationModule implements PipelineModule {
       ],
     ));
 
-    _print(config, metrics);
     if (config.installTests) {
-      print('Installed ${installed.length} passing test files into test/${TestInstaller.directoryName}/; '
-          '${outcomes.length - installed.length} others stay in the run reports.');
+      print(friendlySummary(outcomes, installed, artifacts.root));
+    } else {
+      _print(config, metrics);
     }
     print('Results: ${artifacts.resultsJson}');
     print('         ${artifacts.resultsCsv}\n');
@@ -234,6 +234,42 @@ class EvaluationModule implements PipelineModule {
         '<h1>FlutterASTest: ${esc(runName)}</h1><table><tr><th>Screen</th><th>Status</th>'
         '<th>Tests passed</th><th>Line coverage</th><th>Branch coverage</th><th>Repairs</th></tr>'
         '$rows</table>';
+  }
+
+  /// What happened and what to do next, in words a developer can act on.
+  static String friendlySummary(List<ScreenOutcome> outcomes, List<String> installed, String runRoot) {
+    final passing = outcomes.where((o) => o.finalRun?.allPassed ?? false).length;
+    final tests = outcomes.fold<int>(
+        0, (sum, o) => sum + ((o.finalRun?.allPassed ?? false) ? o.finalRun!.passed : 0));
+    final out = StringBuffer()
+      ..writeln()
+      ..writeln('Result: $passing of ${outcomes.length} have working tests ($tests tests).')
+      ..writeln();
+    for (final outcome in outcomes) {
+      final run = outcome.finalRun;
+      if (run?.allPassed ?? false) {
+        final coverage = ((run!.screenCoverage?.ratio ?? 0) * 100).toStringAsFixed(0);
+        out.writeln('[pass] ${outcome.screenName}: ${run.passed} tests, $coverage% line coverage');
+      } else {
+        out.writeln('[fail] ${outcome.screenName}: ${run?.reason ?? 'no test was generated'}');
+        final advice = outcome.best?.analysis?.recommendations;
+        if (advice != null && advice.isNotEmpty) out.writeln('       What to try: ${advice.first}');
+      }
+    }
+    out.writeln();
+    if (installed.isNotEmpty) {
+      out.writeln('Added to your project:');
+      for (final path in installed) {
+        out.writeln('  $path');
+      }
+    }
+    if (passing < outcomes.length) {
+      out
+        ..writeln('Failed tests were not added, so your test suite stays green. You can read and fix them here:')
+        ..writeln('  ${p.join(runRoot, 'tests')}');
+    }
+    out.write('Full report: ${p.join(runRoot, 'report.html')}');
+    return out.toString();
   }
 
   static String _csvCell(Object? value) {

@@ -97,7 +97,11 @@ FlutterASTest runs on your machine, with no accounts and no telemetry. By defaul
 ```bash
 flutterastest init       # choose a provider and save your own key
 flutterastest doctor     # check that everything is ready
-flutterastest generate   # write and run tests for this project
+flutterastest generate   # write and run widget tests for every screen
+flutterastest generate --screen LoginScreen   # only one screen
+flutterastest unit       # write and run unit tests for classes and functions
+flutterastest unit --screen AuthController    # only one class
+flutterastest targets    # list screens (--kind unit: classes)
 ```
 
 ## 🔬 Running the Experiments

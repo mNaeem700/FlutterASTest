@@ -21,6 +21,9 @@ enum ContextMode {
   repository,
 }
 
+/// What kind of tests to write. Research experiments use widget tests only.
+enum TestKind { widget, unit }
+
 /// A component removed for the ablation study (Doc 16.11). A3, removing
 /// reflection, is a run without `reflect`.
 enum Ablation {
@@ -66,6 +69,7 @@ class ExperimentConfig {
     this.screens = const {},
     this.maxScreens,
     this.requestInterval,
+    this.kind = TestKind.widget,
   });
 
   /// Upper bound of repair iterations of the reflection loop (Doc 15.20.3).
@@ -127,6 +131,8 @@ class ExperimentConfig {
   /// Pause between LLM calls; null means 10 s, or none for a local model.
   final Duration? requestInterval;
 
+  final TestKind kind;
+
   /// A developer's run keeps everything in their project. With an explicit
   /// output folder (research runs) the target project stays unchanged.
   ExperimentConfig resolvedFor(String projectPath) => outputRoot != null
@@ -137,6 +143,7 @@ class ExperimentConfig {
 
   /// `pkg`, `baseline-reflect`, `pkg-reflect-noCoverageGuidance-rep2`, ...
   String get runName => [
+        if (kind == TestKind.unit) 'unit',
         mode.name,
         if (reflect) 'reflect',
         if (ablation != Ablation.none) ablation.name,
@@ -174,6 +181,7 @@ class ExperimentConfig {
     Set<String>? screens,
     int? maxScreens,
     Duration? requestInterval,
+    TestKind? kind,
   }) =>
       ExperimentConfig(
         mode: mode ?? this.mode,
@@ -198,6 +206,7 @@ class ExperimentConfig {
         screens: screens ?? this.screens,
         maxScreens: maxScreens ?? this.maxScreens,
         requestInterval: requestInterval ?? this.requestInterval,
+        kind: kind ?? this.kind,
       );
 
   /// Reads the YAML configuration file of Doc 17.10. Missing keys keep their
@@ -240,6 +249,7 @@ class ExperimentConfig {
   }
 
   Map<String, dynamic> toJson() => {
+        'kind': kind.name,
         'mode': mode.name,
         'ablation': ablation.name,
         'reflect': reflect,

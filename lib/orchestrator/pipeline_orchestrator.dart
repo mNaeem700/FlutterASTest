@@ -58,6 +58,10 @@ class PipelineOrchestrator {
     PipelineStage.promptBuilder,
   };
 
+  static const _stageStarts = {
+    PipelineStage.parser: 'Reading your project (large apps can take a minute)...',
+  };
+
   static const _stageTitles = {
     PipelineStage.parser: 'Parsed the project',
     PipelineStage.analysis: 'Analysed screens',
@@ -232,6 +236,8 @@ class PipelineOrchestrator {
       'Executing ${module.stage.name}...',
     );
 
+    final title = _stageStarts[module.stage];
+    if (title != null && !context.verbose) print(title);
     _quietStage = _quietStages.contains(module.stage);
     try {
       await module.execute(context);

@@ -393,12 +393,12 @@ class _DependencyCollector extends RecursiveAstVisitor<void> {
     final classes = [_widget.declaration, if (_state != null) _state.declaration];
 
     final superclass = _widget.declaration.extendsClause?.superclass;
-    if (superclass != null && superclass.name.lexeme == 'GetView') {
+    if (superclass != null && const {'GetView', 'GetWidget'}.contains(superclass.name.lexeme)) {
       final typeArgs = superclass.typeArguments?.arguments ?? const [];
       if (typeArgs.isNotEmpty && typeArgs.first is NamedType) {
         final type = (typeArgs.first as NamedType).name.lexeme;
         _variableTypes['controller'] = type;
-        _acquire(type, 'GetView<$type>');
+        _acquire(type, '${superclass.name.lexeme}<$type>');
       }
     }
 
@@ -425,6 +425,15 @@ class _DependencyCollector extends RecursiveAstVisitor<void> {
           members: _signatures(type),
           isProjectClass: _index.classNamed(type) != null,
           location: _index.classNamed(type) == null ? null : locate(_index.classNamed(type)!.declaration),
+          importUri: _index.classNamed(type) == null
+              ? null
+              : _index.importUriFor(_index.classNamed(type)!.path),
+          constructors: _index.classNamed(type) == null
+              ? const []
+              : [
+                  for (final c in ScreenContextAnalyzer._constructors(_index.classNamed(type)!.declaration))
+                    c.render(),
+                ],
         ),
     ];
   }

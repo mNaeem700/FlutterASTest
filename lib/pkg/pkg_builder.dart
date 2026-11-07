@@ -120,7 +120,11 @@ class PkgBuilder {
         id: id,
         label: dependency.type,
         type: NodeType.dependency,
-        properties: {'isProjectClass': dependency.isProjectClass},
+        properties: {
+          'isProjectClass': dependency.isProjectClass,
+          if (dependency.importUri != null) 'importUri': dependency.importUri,
+          if (dependency.constructors.isNotEmpty) 'constructors': dependency.constructors,
+        },
       ));
       graph.addEdge(PkgEdge(
         sourceId: screenId,

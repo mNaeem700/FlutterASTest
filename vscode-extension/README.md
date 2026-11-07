@@ -1,51 +1,54 @@
-# FlutterASTest: AI Widget Test Generator for Flutter
+# FlutterASTest: AI Flutter Test Generator
 
-**Generate and run Flutter widget tests with AI, right inside VS Code.** FlutterASTest reads your Dart code's structure (widgets, navigation, state and form validators), writes `flutter_test` widget tests, runs them in your project and reports the results with coverage.
+**Generate and run Flutter widget tests and unit tests with AI, right inside VS Code.** Choose one screen, one class or your whole app. FlutterASTest reads your Dart code's structure, writes tests, runs them in your project and shows you what worked, what failed and why.
 
 By default it uses a **local AI model, so your code stays on your machine**. You can also use Gemini or an OpenAI-compatible service with your own API key.
 
-> **Pre-release.** This is an early version and you may meet bugs. Please report them on [GitHub Issues](https://github.com/mNaeem700/FlutterASTest/issues).
+> **Pre-release.** This is an early version. Test quality depends on the AI model and your app, and you may meet bugs. Please report them on [GitHub Issues](https://github.com/mNaeem700/FlutterASTest/issues).
 
-## Why FlutterASTest
+## How it works
 
-- **Understands your Flutter app.** Tests are based on your app's real widget tree, screens, routes and form validators, found through AST analysis, instead of a model guessing from raw text.
-- **Private by default.** With a local model, nothing leaves your computer. A cloud provider is used only if you choose one, and the extension asks first.
-- **Runs what it writes.** Tests run with your project's Flutter version, and you get pass/fail results with line and branch coverage.
-- **Repairs failing tests.** Errors go back to the model so it can fix the test, up to 5 times.
-- **Keeps your test suite green.** Only fully passing tests are added to `test/flutterastest/`, and your own test files are never overwritten.
-- **Works with common architectures.** Analysis covers GetX, Provider, Bloc/Cubit, Riverpod, ValueNotifier and MobX, and Navigator, GoRouter and AutoRoute.
+1. **Reads your code.** AST analysis finds screens, widgets, navigation, form validators, state and dependencies.
+2. **Writes tests.** The AI writes tests from that information, instead of guessing from raw text.
+3. **Runs them.** Tests run with your project's own Flutter version, with line and branch coverage.
+4. **Repairs failures.** Errors go back to the AI, up to 5 times.
+5. **Keeps your suite green.** Passing tests go to `test/flutterastest/`. Failing tests are added only if you choose to, and your own test files are never overwritten.
 
 ## Getting started
 
-FlutterASTest needs its command-line tool, which this extension runs for you.
-
 1. **Install the Flutter SDK**, and run `flutter pub get` in your project.
-2. **Install the command-line tool:**
+2. **Install the command-line tool** once:
 
    ```bash
    dart pub global activate --source git https://github.com/mNaeem700/FlutterASTest
    ```
 
-   Make sure Dart's global `bin` folder is on your `PATH`.
-3. **Choose your AI model.** Click **FlutterASTest** in the status bar:
+3. **Choose your AI.** Click **FlutterASTest** in the status bar:
    - **Local:** install [Ollama](https://ollama.com), download a code model, and set its name in the `flutterastest.model` setting.
    - **Gemini or OpenAI-compatible:** the extension asks for your API key and keeps it in VS Code's secret storage.
-4. **Run `FlutterASTest: Check Setup`** from the Command Palette to confirm that everything is ready.
-5. **Generate tests.** Right-click a Dart file and choose **FlutterASTest: Generate Tests for Screens in This File**.
+4. **Run `FlutterASTest: Check Setup`** from the Command Palette. It shows what is ready and how to fix what is not.
+5. **Generate.** Run `FlutterASTest: Generate Widget Tests for Chosen Screens...`, or right-click a Dart file.
 
 ## Commands
 
-| Command | What it does |
+| What you want | Command |
 |---|---|
-| Generate Tests for All Screens | Analyses the project, then writes and runs tests |
-| Generate Tests for Screens in This File | The same, for the widget classes in the open file |
-| Build Prompts Only (No LLM Calls) | Runs the analysis and builds prompts, with no AI calls and no key |
-| Open Latest Report | Opens the latest report in your browser |
-| Choose LLM Provider | Switches between a local model and a cloud provider |
-| Set API Key | Replaces your saved key |
-| Check Setup | Checks Flutter, your project and your AI model, and shows the result in the Output panel |
+| Widget tests for one or more screens | Generate Widget Tests for Chosen Screens... |
+| Widget tests for the open file | Generate Widget Tests for This File (also in the right-click menu) |
+| Widget tests for every screen | Generate Widget Tests for All Screens |
+| Unit tests for one or more classes | Generate Unit Tests for Chosen Classes... |
+| Unit tests for the open file | Generate Unit Tests for This File (also in the right-click menu) |
+| Unit tests for every class and function | Generate Unit Tests for All Classes |
+| See the prompts, with no AI calls | Build Prompts Only |
+| Check your setup | Check Setup |
+| Read the latest report | Open Latest Report |
+| Change the AI or the key | Choose AI Provider, Set API Key |
 
-Results of the latest run appear in the **Testing** panel.
+## Seeing what happened
+
+- **Output panel:** progress, and the reason for each failure.
+- **Testing panel, FlutterASTest section:** one line per screen or class. Click it to open the test. On a failed test, **Add Test to Project** keeps it so you can fix it yourself.
+- **Report:** a summary page in your browser.
 
 ## Settings
 
@@ -64,7 +67,7 @@ There are no accounts and no telemetry. With the `local` provider, your code sta
 ## Good to know
 
 - Tests are written by an AI model and can be wrong, so review them before relying on them.
-- A local model's test quality depends on the model and your hardware.
+- Screens tied to Firebase, network or heavy services are harder to test, and some may fail.
 - Generated tests run your app's code on your machine, so use this on projects you trust.
 
 ## Support

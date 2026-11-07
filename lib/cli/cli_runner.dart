@@ -31,6 +31,10 @@ class CLIRunner {
 
         break;
 
+      case 'targets':
+        await const TargetLister().run(options.projectPath!, unit: options.unit);
+        break;
+
       case 'config':
         const ConfigCommand().run(options.arguments, UserConfig.load());
         break;

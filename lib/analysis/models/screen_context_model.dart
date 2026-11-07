@@ -346,6 +346,8 @@ class DependencyUsage {
     required this.members,
     required this.isProjectClass,
     this.location,
+    this.importUri,
+    this.constructors = const [],
   });
 
   final String type;
@@ -360,11 +362,17 @@ class DependencyUsage {
   /// The class declaration; null for external classes.
   final SourceLocation? location;
 
+  /// Lets a test import the class to register or fake it.
+  final String? importUri;
+  final List<String> constructors;
+
   Map<String, dynamic> toJson() => {
         'type': type,
         'acquisitions': acquisitions,
         'members': members.map((m) => m.toJson()).toList(),
         'isProjectClass': isProjectClass,
+        if (importUri != null) 'importUri': importUri,
+        if (constructors.isNotEmpty) 'constructors': constructors,
         if (location != null) 'location': location!.toJson(),
       };
 }

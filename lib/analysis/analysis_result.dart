@@ -2,6 +2,7 @@ import 'models/architecture_health_model.dart';
 import 'models/callback_model.dart';
 import 'models/project_info_model.dart';
 import 'models/screen_context_model.dart';
+import 'analyzers/unit_target_analyzer.dart';
 import 'models/widget_property_model.dart';
 
 class AnalysisResult {
@@ -23,6 +24,12 @@ class AnalysisResult {
   /// Route name → widget class it opens.
   final Map<String, String> routes;
 
+  /// Classes and functions unit tests can target.
+  final List<UnitTarget> unitTargets;
+
+  /// Project class → `package:` URI, to help repair missing imports.
+  final Map<String, String> classImports;
+
   const AnalysisResult({
     required this.totalFiles,
     required this.projectInfo,
@@ -37,5 +44,7 @@ class AnalysisResult {
     required this.screenContexts,
     this.architectureHealth,
     this.routes = const {},
+    this.unitTargets = const [],
+    this.classImports = const {},
   });
 }

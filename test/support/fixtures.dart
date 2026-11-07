@@ -264,6 +264,24 @@ class BlocScreen extends StatelessWidget {
 }
 ''';
 
+const getWidgetSource = r'''
+import 'package:fixture_app/controllers/home_controller.dart';
+class HomeScreen2 extends GetWidget<HomeController> {
+  Widget build(BuildContext context) {
+    return Scaffold(body: TextButton(onPressed: () => controller.load(), child: const Text('Load')));
+  }
+}
+''';
+
+const homeControllerSource = r'''
+class HomeController extends GetxController {
+  HomeController(this.api);
+  final Api api;
+  void load() {}
+}
+int add(int a, int b) => a + b;
+''';
+
 List<SourceUnit> loginFixture() => [
       unit('lib/screens/login_screen.dart', loginScreenSource),
       unit('lib/screens/home_screen.dart', homeScreenSource),

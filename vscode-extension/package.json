@@ -1,8 +1,8 @@
 {
   "name": "flutterastest",
-  "displayName": "FlutterASTest - AI Widget Test Generator",
-  "description": "Generate and run Flutter widget tests with AI. Understands your Dart code through AST analysis; uses a local model by default, so your code stays on your machine.",
-  "version": "1.1.1",
+  "displayName": "FlutterASTest - AI Flutter Test Generator (Widget & Unit Tests)",
+  "description": "Generate and run Flutter widget tests and unit tests with AI, for one screen or your whole app. Reads your Dart code with AST analysis and uses a local model by default, so your code stays on your machine.",
+  "version": "1.1.2",
   "publisher": "NeemiiDevs",
   "license": "MIT",
   "icon": "icon.png",
@@ -20,11 +20,16 @@
     "flutter",
     "dart",
     "flutter test",
+    "flutter testing",
     "widget test",
+    "widget testing",
     "unit test",
+    "unit testing",
     "test generator",
     "test generation",
+    "ai test",
     "ai test generator",
+    "flutter ai",
     "ai",
     "llm",
     "ollama",
@@ -44,34 +49,56 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Testing", "AI", "Other"],
+  "categories": [
+    "Testing",
+    "AI",
+    "Other"
+  ],
   "main": "./extension.js",
-  "activationEvents": ["workspaceContains:pubspec.yaml"],
+  "activationEvents": [
+    "workspaceContains:pubspec.yaml"
+  ],
   "contributes": {
     "commands": [
       {
         "command": "flutterastest.generateProject",
-        "title": "FlutterASTest: Generate Tests for All Screens"
+        "title": "FlutterASTest: Generate Widget Tests for All Screens"
+      },
+      {
+        "command": "flutterastest.pickScreens",
+        "title": "FlutterASTest: Generate Widget Tests for Chosen Screens..."
       },
       {
         "command": "flutterastest.generateFile",
-        "title": "FlutterASTest: Generate Tests for Screens in This File"
+        "title": "FlutterASTest: Generate Widget Tests for This File"
+      },
+      {
+        "command": "flutterastest.unitProject",
+        "title": "FlutterASTest: Generate Unit Tests for All Classes"
+      },
+      {
+        "command": "flutterastest.pickClasses",
+        "title": "FlutterASTest: Generate Unit Tests for Chosen Classes..."
+      },
+      {
+        "command": "flutterastest.unitFile",
+        "title": "FlutterASTest: Generate Unit Tests for This File"
       },
       {
         "command": "flutterastest.preview",
-        "title": "FlutterASTest: Build Prompts Only (No LLM Calls)"
+        "title": "FlutterASTest: Build Prompts Only (No AI Calls)"
       },
       {
         "command": "flutterastest.openReport",
         "title": "FlutterASTest: Open Latest Report"
       },
       {
-        "command": "flutterastest.setApiKey",
-        "title": "FlutterASTest: Set API Key"
+        "command": "flutterastest.selectProvider",
+        "title": "FlutterASTest: Choose AI Provider"
       },
       {
-        "command": "flutterastest.selectProvider",
-        "title": "FlutterASTest: Choose LLM Provider"
+        "command": "flutterastest.setApiKey",
+        "title": "FlutterASTest: Set API Key"
       },
       {
         "command": "flutterastest.doctor",
@@ -81,6 +108,11 @@
         "command": "flutterastest.refreshResults",
         "title": "FlutterASTest: Refresh Results",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "flutterastest.addToProject",
+        "title": "Add Test to Project",
+        "icon": "$(add)"
       }
     ],
     "views": {
@@ -94,10 +126,16 @@
     "viewsWelcome": [
       {
         "view": "flutterastest.results",
-        "contents": "No results yet.\n[Generate Tests](command:flutterastest.generateProject)\n[Check Setup](command:flutterastest.doctor)\nBy default your code stays on this machine."
+        "contents": "No results yet.\n[Generate Widget Tests](command:flutterastest.pickScreens)\n[Generate Unit Tests](command:flutterastest.pickClasses)\n[Check Setup](command:flutterastest.doctor)\nBy default your code stays on this machine."
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "flutterastest.addToProject",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "flutterastest.refreshResults",
@@ -105,9 +143,21 @@
           "group": "navigation"
         }
       ],
+      "view/item/context": [
+        {
+          "command": "flutterastest.addToProject",
+          "when": "view == flutterastest.results && viewItem == flutterastest.failed",
+          "group": "inline"
+        }
+      ],
       "editor/context": [
         {
           "command": "flutterastest.generateFile",
+          "when": "resourceLangId == dart",
+          "group": "flutterastest"
+        },
+        {
+          "command": "flutterastest.unitFile",
           "when": "resourceLangId == dart",
           "group": "flutterastest"
         }
@@ -123,7 +173,11 @@
         },
         "flutterastest.provider": {
           "type": "string",
-          "enum": ["local", "gemini", "openai"],
+          "enum": [
+            "local",
+            "gemini",
+            "openai"
+          ],
           "default": "local",
           "enumDescriptions": [
             "A model on this machine, such as Ollama. Your code stays here.",
@@ -148,6 +202,39 @@
           "description": "Flutter to use. Empty detects it per project (its FVM SDK, then PATH)."
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "flutterastest.start",
+        "title": "Get Started with FlutterASTest",
+        "description": "Set up AI test generation for your Flutter app in a few minutes.",
+        "steps": [
+          {
+            "id": "install",
+            "title": "Install the command-line tool",
+            "description": "FlutterASTest runs through its command-line tool.\n[Check Setup](command:flutterastest.doctor)",
+            "media": {
+              "markdown": "media/install.md"
+            }
+          },
+          {
+            "id": "provider",
+            "title": "Choose your AI",
+            "description": "Use a local model, or Gemini or an OpenAI-compatible service with your own key.\n[Choose AI Provider](command:flutterastest.selectProvider)",
+            "media": {
+              "markdown": "media/provider.md"
+            }
+          },
+          {
+            "id": "generate",
+            "title": "Generate your first test",
+            "description": "Start with one screen.\n[Choose a Screen](command:flutterastest.pickScreens)",
+            "media": {
+              "markdown": "media/generate.md"
+            }
+          }
+        ]
+      }
+    ]
   }
 }

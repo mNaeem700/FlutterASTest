@@ -16,6 +16,7 @@ class RepairPromptBuilder {
     required int iteration,
     FailureAnalysis? analysis,
     bool coverageGuided = false,
+    Map<String, String> classImports = const {},
   }) {
     final out = StringBuffer()
       ..writeln(originalPrompt.trimRight())
@@ -39,6 +40,15 @@ class RepairPromptBuilder {
       }
     }
 
+    final imports = importsForMissingNames(run, classImports);
+    if (imports.isNotEmpty) {
+      out
+        ..writeln()
+        ..writeln('## Imports for names the compiler could not find')
+        ..writeln('These project imports are also allowed:');
+      imports.forEach((name, uri) => out.writeln("- `$name`: `import '$uri';`"));
+    }
+
     final gaps = coverageGuided ? coverageGaps(run) : '';
     if (gaps.isNotEmpty) {
       out
@@ -59,6 +69,18 @@ class RepairPromptBuilder {
           'platform services, and say why in a code comment.')
       ..writeln('- Follow all rules above, and reply with the whole corrected file in exactly one ```dart code block.');
     return out.toString();
+  }
+
+  static Map<String, String> importsForMissingNames(TestRun run, Map<String, String> classImports) {
+    final pattern = RegExp(r"(?:not found|Undefined name|Undefined class|isn't defined[^']*|Type)[:\s]*'(\w+)'");
+    final found = <String, String>{};
+    for (final error in run.loadErrors) {
+      for (final match in pattern.allMatches(error)) {
+        final uri = classImports[match.group(1)];
+        if (uri != null) found[match.group(1)!] = uri;
+      }
+    }
+    return found;
   }
 
   /// Plain-text summary of a run, as the LLM sees it.

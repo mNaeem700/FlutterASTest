@@ -116,7 +116,7 @@ class FailureAnalyzer {
       confidence: total == 0 ? 0 : categories[ordered.first]! / total,
       evidence: [
         for (final message in messages.take(3))
-          message.split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => '').trim(),
+          TestRun.firstCause(message) ?? '',
       ],
       categories: categories,
       primaryCause: ordered.isEmpty ? 'none' : ordered.first.name,

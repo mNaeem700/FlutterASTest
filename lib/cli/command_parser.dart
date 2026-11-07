@@ -65,6 +65,7 @@ class CommandParser {
       ..addOption('max-mutants')
       ..addOption('provider', allowed: ['local', 'gemini', 'openai'])
       ..addFlag('accept-cloud', negatable: false)
+      ..addOption('kind', allowed: ['widget', 'unit'])
       ..addFlag('plan', negatable: false)
       ..addFlag('test-llm', negatable: false)
       ..addOption('max-screens')
@@ -84,14 +85,15 @@ class CommandParser {
     }
 
     final first = result.rest.isNotEmpty ? result.rest.first : '';
-    final command = const {'analyze', 'generate'}.contains(first) ? 'analyse' : first;
+    final isUnit = first == 'unit' || result['kind'] == 'unit';
+    final command = const {'analyze', 'generate', 'unit'}.contains(first) ? 'analyse' : first;
 
     // The analyzer accepts only absolute, normalized paths, so `.`,
     // relative paths and forward slashes on Windows are normalized here.
     // Without a path, the project is the current folder.
     final project = result.rest.length > 1
         ? p.normalize(p.absolute(result.rest[1]))
-        : (command == 'analyse' || command == 'doctor' || command == 'init'
+        : (command == 'analyse' || command == 'doctor' || command == 'init' || command == 'targets'
             ? p.normalize(p.absolute('.'))
             : null);
 
@@ -108,12 +110,13 @@ class CommandParser {
       acceptCloud: result['accept-cloud'] as bool,
       plan: result['plan'] as bool,
       testLlm: result['test-llm'] as bool,
-      experiment: _experiment(result),
+      unit: isUnit,
+      experiment: _experiment(result, isUnit),
     );
   }
 
   /// The YAML file, if any, overridden by flags given on the command line.
-  ExperimentConfig _experiment(ArgResults result) {
+  ExperimentConfig _experiment(ArgResults result, bool isUnit) {
     final path = result['config'] as String?;
     if (path != null && !File(path).existsSync()) {
       throw CLIException('Config file not found: $path', ExitCodes.invalidArguments);
@@ -131,6 +134,7 @@ class CommandParser {
           : null,
       label: result['label'] as String?,
       resume: result['resume'] as bool ? true : null,
+      kind: isUnit ? TestKind.unit : null,
       mutation: result['mutation'] as bool ? true : null,
       maxScreens: result.wasParsed('max-screens') ? _positiveInt(result, 'max-screens') : null,
       requestInterval: result.wasParsed('request-interval')

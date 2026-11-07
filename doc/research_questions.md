@@ -17,6 +17,8 @@ The four research questions of the research design stay unchanged, because they 
 | **RQ4** How does FlutterASTest compare with existing approaches in quality and practical usability? | RQ4.1 Comparison with existing approaches | Doc 16.8 Baselines 1, 5 | Apps' existing human-written tests; a published tool if one applies to Flutter | Pass rate, coverage, test smells | Requires benchmark work (S12) |
 | | RQ4.2 Does it scale to large repositories? | Doc 16 RQ4 | Small, medium and large apps | Time per stage, peak memory, throughput | `performance.json` |
 
+Unit test generation (`flutterastest unit`) is a product feature. The locked research scope is widget tests only, so it is not part of these experiments.
+
 ## Hypotheses (Doc 16.4)
 
 - H1: PKG-based prompting improves test generation compared with baseline prompting (RQ2).

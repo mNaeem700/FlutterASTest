@@ -31,9 +31,11 @@ class PromptModule implements PipelineModule {
   @override
   Future<void> execute(PipelineContext context) async {
     final config = context.get<ExperimentConfig>() ?? const ExperimentConfig();
-    final all = config.mode == ContextMode.pkg
-        ? _fromGraph(context, config)
-        : _fromSource(context, config);
+    final all = config.kind == TestKind.unit
+        ? _unitTargets(context)
+        : config.mode == ContextMode.pkg
+            ? _fromGraph(context, config)
+            : _fromSource(context, config);
     final chosen = config.screens.isEmpty
         ? all
         : [for (final c in all) if (config.screens.contains(c.screenName)) c];
@@ -50,6 +52,24 @@ class PromptModule implements PipelineModule {
   static List<T> sample<T>(List<T> items, int? limit) => limit == null || items.length <= limit
       ? items
       : [for (var i = 0; i < limit; i++) items[i * items.length ~/ limit]];
+
+  List<PromptContext> _unitTargets(PipelineContext context) {
+    final analysis = context.get<AnalysisResult>();
+    if (analysis == null) {
+      throw Exception('AnalysisResult missing from PipelineContext!');
+    }
+    return [
+      for (final target in analysis.unitTargets)
+        PromptContext(
+          screenName: target.name,
+          screenId: target.relativePath,
+          importUri: target.importUri,
+          context: target.source,
+          navigationImports: target.imports,
+          nodesVisited: 0,
+        ),
+    ];
+  }
 
   List<PromptContext> _fromGraph(PipelineContext context, ExperimentConfig config) {
     final graph = context.get<KnowledgeGraph>();

@@ -8,6 +8,45 @@ class PromptBuilder {
 
   static const templateVersion = '1.0';
 
+  /// A unit test for one class or a file's functions; no Flutter UI involved.
+  String buildUnit({
+    required ProjectInfoModel project,
+    required String targetName,
+    required String importUri,
+    required List<String> imports,
+    required String context,
+  }) {
+    final mocking = project.mockingLibraries;
+    final allowed = [
+      'package:flutter_test/flutter_test.dart',
+      importUri,
+      ...imports.where((uri) => uri != importUri),
+      for (final lib in mocking) 'package:$lib/$lib.dart',
+    ];
+    return '''
+You are an expert Dart engineer writing unit tests.
+
+## Task
+Write one complete, compilable unit test file for `$targetName` of the Flutter app `${project.packageName}`.
+
+## Rules
+1. Reply with exactly one ```dart code block that contains the whole test file, and nothing else.
+2. Import only the libraries listed under "Allowed imports". Never invent other imports or placeholder paths.
+3. Use `test` and `group` from flutter_test, and call `TestWidgetsFlutterBinding.ensureInitialized()` first if the code uses Flutter services.
+4. Test each public method's behaviour: normal input, edge cases and errors. Assert real results.
+5. Do not call real network, storage or Firebase services. Mocking libraries available: ${mocking.isEmpty ? 'none, so write small fakes by hand' : mocking.join(', ')}. If something cannot be tested without those services, skip it and explain why in a code comment.
+6. Keep tests deterministic: no real waiting.
+
+## Allowed imports
+${[for (final uri in allowed) "- `import '$uri';`"].join('\n')}
+
+## Source under test
+```dart
+$context
+```
+''';
+  }
+
   /// Ablation A4: no rules, project facts or import list, only the task.
   String buildMinimal({
     required String packageName,

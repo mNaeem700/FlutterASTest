@@ -110,11 +110,12 @@ class AttemptExecutor {
   static String describe(TestRun run) {
     if (run.timedOut) return 'timed out';
     if (run.rejectedBeforeExecution) return 'rejected: ${run.loadErrors.first}';
-    if (!run.compiled) return 'does not compile';
+    if (!run.compiled) return 'does not compile: ${run.reason ?? 'unknown error'}';
     final coverage = run.screenCoverage == null
         ? ''
         : ', screen coverage ${(run.screenCoverage!.ratio * 100).toStringAsFixed(1)}%';
-    return '${run.passed} passed, ${run.failed} failed$coverage';
+    final cause = run.failed > 0 && run.reason != null ? ' - ${run.reason}' : '';
+    return '${run.passed} passed, ${run.failed} failed$coverage$cause';
   }
 }
 

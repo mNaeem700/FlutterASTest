@@ -38,6 +38,9 @@ class CLIOptions {
   /// Make one small LLM call in `doctor`.
   final bool testLlm;
 
+  /// `targets`: list what tests can be written for, as JSON.
+  final bool unit;
+
   const CLIOptions({
     required this.command,
     required this.projectPath,
@@ -52,5 +55,6 @@ class CLIOptions {
     this.acceptCloud = false,
     this.plan = false,
     this.testLlm = false,
+    this.unit = false,
   });
 }

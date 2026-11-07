@@ -433,6 +433,9 @@ class AnalysisModule implements PipelineModule {
 
   void _exportScreenContexts(AnalysisResult result, String directory) {
     final file = File(p.join(directory, 'screen_contexts.json'));
+    File(p.join(directory, 'unit_targets.json'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode(result.unitTargets.map((t) => t.toJson()).toList()));
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
       'project': result.projectInfo.toJson(),

@@ -265,6 +265,9 @@ class Other { bool b = x > 1; }
       for (final command in commands) {
         expect(code, contains("'$command'"), reason: command);
       }
+      for (final match in RegExp(r"register\('([\w.]+)'").allMatches(code)) {
+        expect(commands, contains(match.group(1)), reason: 'registered but not declared');
+      }
       expect(manifest['main'], './extension.js');
     });
 
@@ -273,7 +276,10 @@ class Other { bool b = x > 1; }
       expect(File('vscode-extension/${manifest['icon']}').existsSync(), isTrue);
       expect(File('vscode-extension/LICENSE').existsSync(), isTrue);
       expect((manifest['keywords'] as List).length, lessThanOrEqualTo(30));
-      expect('${manifest['version']}', '1.1.1');
+      expect('${manifest['version']}', '1.1.2');
+      for (final step in manifest['contributes']['walkthroughs'][0]['steps'] as List) {
+        expect(File('vscode-extension/${step['media']['markdown']}').existsSync(), isTrue);
+      }
       expect(code, isNot(contains('sendText')),
           reason: 'a terminal shell may be PowerShell, where a quoted command does not run');
     });

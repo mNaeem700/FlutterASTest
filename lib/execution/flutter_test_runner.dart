@@ -34,7 +34,16 @@ class FlutterTestRunner {
   /// Removes files left behind by an interrupted earlier run.
   static Future<void> cleanUp(String projectPath) async {
     final dir = tempDirectory(projectPath);
-    if (await dir.exists()) await dir.delete(recursive: true);
+    // On Windows the test process can hold its files for a moment after it
+    // exits. A folder left behind is harmless and is removed by the next run.
+    for (var attempt = 0; attempt < 10 && await dir.exists(); attempt++) {
+      try {
+        await dir.delete(recursive: true);
+      } on FileSystemException {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
+    if (await dir.exists()) return;
     // Remove test/ only when this tool created it and nothing else is in it.
     final marker = File(p.join(projectPath, 'test', _createdMarker));
     if (await marker.exists()) {

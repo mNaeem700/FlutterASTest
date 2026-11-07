@@ -44,12 +44,21 @@ class PromptOptimizerModule implements PipelineModule {
 
     final screenFiles = {
       for (final screen in analysis.screenContexts) screen.name: screen.relativePath,
+      for (final target in analysis.unitTargets) target.name: target.relativePath,
     };
 
     final prompts = <TestPrompt>[];
     var totalChars = 0;
     for (final promptContext in promptContexts) {
-      final text = config.ablation == Ablation.noPromptBuilder
+      final text = config.kind == TestKind.unit
+          ? _builder.buildUnit(
+              project: analysis.projectInfo,
+              targetName: promptContext.screenName,
+              importUri: promptContext.importUri ?? '',
+              imports: promptContext.navigationImports,
+              context: promptContext.context,
+            )
+          : config.ablation == Ablation.noPromptBuilder
           ? _builder.buildMinimal(
               packageName: analysis.projectInfo.packageName,
               screenName: promptContext.screenName,

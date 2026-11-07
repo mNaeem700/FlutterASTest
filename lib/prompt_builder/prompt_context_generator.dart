@@ -98,6 +98,7 @@ class PromptContextGenerator {
       }
     }
 
+    final navigationImports = <String>{};
     out.writeln('\n### Dependencies');
     final dependencyEdges = graph.outgoing(screen.id, EdgeType.dependsOn);
     final usedMembers = graph.targets(screen.id, EdgeType.uses);
@@ -112,6 +113,14 @@ class PromptContextGenerator {
             : 'external class';
         final how = (edge.label?.isEmpty ?? true) ? 'used directly' : 'obtained via ${edge.label}';
         out.writeln('- `${dependency.label}` ($origin, $how)');
+        final dependencyImport = dependency.property<String>('importUri');
+        if (dependencyImport != null) {
+          navigationImports.add(dependencyImport);
+          out.writeln("  - Import: `import '$dependencyImport';`");
+        }
+        for (final constructor in dependency.stringList('constructors')) {
+          out.writeln('  - Constructor: `$constructor`');
+        }
         final members = usedMembers.where((m) =>
             graph.outgoing(dependency.id, EdgeType.declares).any((e) => e.targetId == m.id));
         for (final member in members) {
@@ -122,7 +131,6 @@ class PromptContextGenerator {
     }
 
     out.writeln('\n### Navigation');
-    final navigationImports = <String>{};
     final destinations = <String>{};
     for (final edge in graph.outgoing(screen.id, EdgeType.navigatesTo)) {
       final target = graph.getNode(edge.targetId)!;

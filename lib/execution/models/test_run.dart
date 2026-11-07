@@ -131,6 +131,39 @@ class TestRun {
   /// The file compiled, contains at least one test, and every test passed.
   bool get allPassed => compiled && !timedOut && passed > 0 && failed == 0;
 
+  /// The most useful line of the failure, for people to read.
+  String? get reason {
+    final texts = [
+      ...loadErrors,
+      for (final c in cases)
+        if (c.status == TestCaseStatus.failed && c.message != null) c.message!,
+    ];
+    if (texts.isEmpty) return timedOut ? 'The run timed out.' : null;
+    return firstCause(texts.first);
+  }
+
+  /// Skips test runner boilerplate and returns the line naming the cause.
+  static String? firstCause(String text) {
+    final lines = [
+      for (final line in text.split('\n'))
+        if (line.trim().isNotEmpty) line.trim(),
+    ];
+    String clip(String line) => line.length > 200 ? '${line.substring(0, 197)}...' : line;
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].contains('was thrown') && i + 1 < lines.length) return clip(lines[i + 1]);
+      final error = lines[i].indexOf('Error:');
+      if (error >= 0) return clip(lines[i].substring(error));
+    }
+    for (final line in lines) {
+      if (!line.startsWith('Test failed.') &&
+          !line.startsWith('The test description was') &&
+          !line.startsWith('══')) {
+        return clip(line);
+      }
+    }
+    return null;
+  }
+
   double get passRate => passed + failed == 0 ? 0 : passed / (passed + failed);
 
   TestRun copyWith({
@@ -158,6 +191,7 @@ class TestRun {
 
   Map<String, dynamic> toJson() => {
         'compiled': compiled,
+        if (!allPassed && reason != null) 'reason': reason,
         'timedOut': timedOut,
         'rejectedBeforeExecution': rejectedBeforeExecution,
         'passed': passed,

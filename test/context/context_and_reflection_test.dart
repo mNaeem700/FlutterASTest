@@ -1,4 +1,8 @@
 import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:flutterastest/analysis/analyzers/unit_target_analyzer.dart';
+import 'package:flutterastest/cli/command_parser.dart';
+import 'package:flutterastest/evaluation/evaluation_module.dart';
+import 'package:flutterastest/prompt_optimizer/prompt_builder.dart';
 import 'package:flutterastest/analysis/flutter_ast/route_table.dart';
 import 'package:flutterastest/context_builder/context_builder.dart';
 import 'package:flutterastest/execution/lcov.dart';
@@ -223,6 +227,93 @@ void main() {
       expect(prompt, contains('## Diagnosis'));
       expect(prompt, contains('finderNotFound'));
       expect(prompt, contains('`Button` onTap'));
+    });
+  });
+
+  group('real run findings', () {
+    final units = [
+      unit('lib/screens/home2.dart', getWidgetSource),
+      unit('lib/controllers/home_controller.dart', homeControllerSource),
+    ];
+
+    test('a GetWidget controller reaches the prompt with its import and constructor', () {
+      final built = PkgBuilder().build(analysisOf(units, ['HomeScreen2']));
+      final context = const PromptContextGenerator().generate(built).single;
+      expect(context.context, contains('`HomeController`'));
+      expect(context.context, contains('void load()'));
+      expect(context.context, contains('HomeController(Api api)'));
+      expect(context.navigationImports,
+          contains('package:fixture_app/controllers/home_controller.dart'));
+    });
+
+    test('the useful line is found in a Flutter failure', () {
+      const message = 'Test failed. See exception logs above.\nThe test description was: x\n'
+          '══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞══\n'
+          'The following _TypeError was thrown building Screen:\n'
+          "type 'Null' is not a subtype of type 'C' in type cast\nThe relevant widget was:";
+      expect(TestRun.firstCause(message), "type 'Null' is not a subtype of type 'C' in type cast");
+      expect(TestRun.firstCause("test/a.dart:9:13: Error: Method not found: 'C'."),
+          "Error: Method not found: 'C'.");
+    });
+
+    test('a repair learns the import of a name the compiler could not find', () {
+      const run = TestRun(compiled: false, cases: [], durationMs: 1, loadErrors: [
+        "a.dart:1:1: Error: Method not found: 'HomeController'.\na.dart:2:2: Error: Undefined name 'Other'.",
+      ]);
+      final imports = RepairPromptBuilder.importsForMissingNames(
+          run, {'HomeController': 'package:a/c.dart', 'Unrelated': 'package:a/u.dart'});
+      expect(imports, {'HomeController': 'package:a/c.dart'});
+      final prompt = const RepairPromptBuilder().build(
+          originalPrompt: 'P',
+          previousCode: 'c',
+          run: run,
+          iteration: 1,
+          classImports: {'HomeController': 'package:a/c.dart'});
+      expect(prompt, contains("import 'package:a/c.dart';"));
+    });
+
+    test('the developer summary says what happened, including zero tests', () {
+      const failed = TestRun(compiled: true, durationMs: 1, cases: [
+        TestCaseResult(name: 't', status: TestCaseStatus.failed, message: 'Found 0 widgets'),
+      ]);
+      const response = LlmResponse(text: 'x', model: 'm', latencyMs: 0);
+      final outcome = ScreenOutcome(screenName: 'Home', screenFile: 'f', prompt: 'p')
+        ..attempts.add(Attempt(iteration: 0, generation: response, code: 'c')
+          ..run = failed
+          ..analysis = const FailureAnalyzer().analyse(failed));
+      final text = EvaluationModule.friendlySummary([outcome], const [], 'runs/x');
+      expect(text, contains('0 of 1 have working tests'));
+      expect(text, contains('[fail] Home: Found 0 widgets'));
+      expect(text, contains('What to try'));
+      expect(text, isNot(contains('Added to your project')));
+    });
+
+    test('unit tests target logic, not widgets', () {
+      final targets = const UnitTargetAnalyzer().analyse(indexOf(units));
+      expect(targets.map((t) => t.name), ['HomeController', 'home_controller_functions']);
+      expect(targets.first.importUri, 'package:fixture_app/controllers/home_controller.dart');
+      expect(targets.last.source, contains('int add(int a, int b)'));
+    });
+
+    test('the unit prompt carries the source and allowed imports', () {
+      final prompt = const PromptBuilder().buildUnit(
+        project: indexOf(units).info,
+        targetName: 'HomeController',
+        importUri: 'package:a/c.dart',
+        imports: const ['package:a/d.dart'],
+        context: 'class HomeController {}',
+      );
+      expect(prompt, contains('unit test file for `HomeController`'));
+      expect(prompt, contains("import 'package:a/d.dart';"));
+      expect(prompt, contains('class HomeController {}'));
+    });
+
+    test('unit runs have their own folder and CLI command', () {
+      final options = CommandParser().parse(['unit', 'app', '--screen', 'AuthController']);
+      expect(options.command, 'analyse');
+      expect(options.experiment.kind, TestKind.unit);
+      expect(options.experiment.runName, 'unit-pkg');
+      expect(CommandParser().parse(['generate', 'app']).experiment.kind, TestKind.widget);
     });
   });
 

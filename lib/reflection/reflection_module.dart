@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../analysis/analysis_result.dart';
 import '../execution/executor_module.dart';
 import '../execution/models/test_run.dart';
 import '../experiment/experiment_config.dart';
@@ -92,6 +93,7 @@ class ReflectionModule implements PipelineModule {
           iteration: iteration,
           analysis: base.analysis,
           coverageGuided: config.coverageGuided,
+          classImports: context.get<AnalysisResult>()?.classImports ?? const {},
         );
         final response = await llmService.generate(prompt);
         waitBeforeCall = !response.fromCache;
