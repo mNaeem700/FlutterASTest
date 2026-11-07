@@ -74,6 +74,10 @@ class GeminiLlmService implements LlmService {
         } else {
           return _parse(body, stopwatch.elapsedMilliseconds);
         }
+      } on FormatException catch (e) {
+        // A malformed request will fail the same way every time.
+        lastError = _firstLine(e.toString());
+        break;
       } on Exception catch (e) {
         lastError = _firstLine(e.toString());
       } finally {

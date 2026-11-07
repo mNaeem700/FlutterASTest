@@ -151,6 +151,13 @@ class Other { bool b = x > 1; }
       expect(CommandParser(user: user).parse(['generate']).projectPath, p.normalize(p.absolute('.')));
     });
 
+    test('a failed paste is recognised as an invalid key', () {
+      expect(apiKeyProblem('\u0016'), contains('right-click'));
+      expect(apiKeyProblem('abc def ghi jkl mno pqr stu'), contains('right-click'));
+      expect(apiKeyProblem('short'), contains('too short'));
+      expect(apiKeyProblem('AQ.Ab8RN6K_abcdefghijklmnop1234'), isNull);
+    });
+
     test('local is the default and refuses non-local addresses', () {
       expect(const ExperimentConfig().provider, 'local');
       expect(isLoopback('http://localhost:11434/v1'), isTrue);

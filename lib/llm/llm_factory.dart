@@ -19,11 +19,28 @@ bool isLoopback(String url) {
   return host == 'localhost' || host == '::1' || host.startsWith('127.');
 }
 
+/// Why [key] cannot be a real API key, or null if it can. Pasting with Ctrl+V
+/// into some Windows prompts stores the control character instead of the key.
+String? apiKeyProblem(String key) {
+  if (key.contains(RegExp(r'[\x00-\x20\x7f]'))) {
+    return 'it contains control characters or spaces. The paste probably did not work; '
+        'in a Windows terminal, paste with right-click instead of Ctrl+V';
+  }
+  if (key.length < 20) return 'it is too short (${key.length} characters)';
+  return null;
+}
+
 String _requireKey(String variable, String provider, UserConfig user) {
-  final key = Platform.environment[variable]?.trim() ?? user.apiKey(provider) ?? '';
+  final fromEnv = Platform.environment[variable]?.trim() ?? '';
+  final key = fromEnv.isNotEmpty ? fromEnv : (user.apiKey(provider) ?? '');
   if (key.isEmpty) {
     throw StateError('No API key for $provider. Run: flutterastest config set-key $provider\n'
         '(or set $variable). The key must never be written into source code.');
+  }
+  final problem = apiKeyProblem(key);
+  if (problem != null) {
+    throw StateError('The $provider API key from '
+        '${fromEnv.isNotEmpty ? variable : 'your saved settings'} is not valid: $problem.');
   }
   return key;
 }

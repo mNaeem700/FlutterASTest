@@ -83,7 +83,15 @@ class ConfigCommand {
       case 'set-key' when rest.length == 1:
         // Read from the terminal, so the key never lands in shell history.
         final key = readSecret('API key for ${rest.first}: ');
-        if (key.isEmpty) throw const CLIException('No key entered.', ExitCodes.invalidArguments);
+        if (key.isEmpty) {
+          throw const CLIException(
+              'No key was entered. In a Windows terminal, paste with right-click instead of Ctrl+V.',
+              ExitCodes.invalidArguments);
+        }
+        final problem = apiKeyProblem(key);
+        if (problem != null) {
+          throw CLIException('The key was not saved: $problem.', ExitCodes.invalidArguments);
+        }
         user.setApiKey(rest.first, key);
         stdout.writeln('Saved key ${UserConfig.mask(key)} in ${user.file.path}');
       case 'remove-key' when rest.length == 1:
@@ -201,8 +209,14 @@ class Doctor {
 
   DoctorCheck _cloudKey(String provider, UserConfig user) {
     final variable = provider == 'gemini' ? 'GEMINI_API_KEY' : 'OPENAI_API_KEY';
-    final found = (Platform.environment[variable]?.isNotEmpty ?? false) || user.apiKey(provider) != null;
-    return DoctorCheck('API key', found, found ? '$provider key found' : 'no $provider key',
+    final fromEnv = Platform.environment[variable]?.trim() ?? '';
+    final key = fromEnv.isNotEmpty ? fromEnv : user.apiKey(provider);
+    if (key == null || key.isEmpty) {
+      return DoctorCheck('API key', false, 'no $provider key',
+          fix: 'Run: flutterastest config set-key $provider');
+    }
+    final problem = apiKeyProblem(key);
+    return DoctorCheck('API key', problem == null, problem ?? '$provider key found',
         fix: 'Run: flutterastest config set-key $provider');
   }
 
@@ -288,7 +302,12 @@ class InitCommand {
 
     if (provider != 'local') {
       final key = ConfigCommand.readSecret('API key for $provider: ');
-      if (key.isNotEmpty) user.setApiKey(provider, key);
+      final problem = key.isEmpty ? null : apiKeyProblem(key);
+      if (problem != null) {
+        stdout.writeln('The key was not saved: $problem. Use: flutterastest config set-key $provider');
+      } else if (key.isNotEmpty) {
+        user.setApiKey(provider, key);
+      }
       const CloudConsent().ensure(provider, accepted: false, user: user);
     }
     stdout.writeln();
