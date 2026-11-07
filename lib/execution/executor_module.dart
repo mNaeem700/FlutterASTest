@@ -113,7 +113,7 @@ class AttemptExecutor {
     if (!run.compiled) return 'does not compile: ${run.reason ?? 'unknown error'}';
     final coverage = run.screenCoverage == null
         ? ''
-        : ', screen coverage ${(run.screenCoverage!.ratio * 100).toStringAsFixed(1)}%';
+        : ', line coverage ${(run.screenCoverage!.ratio * 100).toStringAsFixed(1)}%';
     final cause = run.failed > 0 && run.reason != null ? ' - ${run.reason}' : '';
     return '${run.passed} passed, ${run.failed} failed$coverage$cause';
   }
