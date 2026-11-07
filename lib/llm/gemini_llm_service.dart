@@ -51,6 +51,7 @@ class GeminiLlmService implements LlmService {
   Future<LlmResponse> generate(String prompt) async {
     final stopwatch = Stopwatch()..start();
     var lastError = 'no attempt made';
+    var wait = retryDelay;
 
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       final client = HttpClient();
@@ -69,7 +70,8 @@ class GeminiLlmService implements LlmService {
         final body = await response.transform(utf8.decoder).join().timeout(timeout);
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-          lastError = 'HTTP ${response.statusCode}: ${_firstLine(body)}';
+          lastError = 'HTTP ${response.statusCode}: ${errorMessage(body)}';
+          wait = retryDelayIn(body) ?? retryDelay;
           if (!_retryableStatus.contains(response.statusCode)) break;
         } else {
           return _parse(body, stopwatch.elapsedMilliseconds);
@@ -86,8 +88,8 @@ class GeminiLlmService implements LlmService {
 
       print('  Gemini call failed (attempt $attempt/$maxAttempts): $lastError');
       if (attempt < maxAttempts) {
-        print('  Retrying in ${retryDelay.inSeconds} s...');
-        await Future<void>.delayed(retryDelay);
+        print('  Retrying in ${wait.inSeconds} s...');
+        await Future<void>.delayed(wait);
       }
     }
 
@@ -141,6 +143,23 @@ class GeminiLlmService implements LlmService {
       promptTokens: promptTokens,
       outputTokens: outputTokens,
     );
+  }
+
+  /// The provider's own explanation from an error body.
+  static String errorMessage(String body) {
+    try {
+      final message = ((jsonDecode(body) as Map)['error'] as Map?)?['message'] as String?;
+      if (message != null) return _firstLine(message);
+    } on FormatException {
+      // Not JSON; the raw text below is the best available.
+    }
+    return _firstLine(body);
+  }
+
+  /// How long the provider asks to wait, such as `"retryDelay": "35s"`.
+  static Duration? retryDelayIn(String body) {
+    final match = RegExp(r'"retryDelay"\s*:\s*"(\d+)(?:\.\d+)?s"').firstMatch(body);
+    return match == null ? null : Duration(seconds: int.parse(match.group(1)!) + 1);
   }
 
   static String _firstLine(String text) {

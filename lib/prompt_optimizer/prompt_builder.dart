@@ -18,6 +18,8 @@ class PromptBuilder {
   }) {
     final mocking = project.mockingLibraries;
     final allowed = [
+      'package:flutter/material.dart',
+      'package:flutter/services.dart',
       'package:flutter_test/flutter_test.dart',
       importUri,
       ...imports.where((uri) => uri != importUri),

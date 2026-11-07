@@ -103,6 +103,15 @@ class Other { bool b = x > 1; }
           {'temperature': 0.2, 'topP': 1.0, 'seed': 7, 'maxOutputTokens': 4096});
     });
 
+    test('Gemini errors are readable and its retry delay is respected', () {
+      const body = '{\n "error": {"code": 429, "message": "Quota exceeded for requests.", '
+          '"details": [{"retryDelay": "35s"}]}\n}';
+      expect(GeminiLlmService.errorMessage(body), 'Quota exceeded for requests.');
+      expect(GeminiLlmService.retryDelayIn(body), const Duration(seconds: 36));
+      expect(GeminiLlmService.retryDelayIn('{}'), isNull);
+      expect(GeminiLlmService.errorMessage('plain failure'), 'plain failure');
+    });
+
     test('OpenAI-compatible request and reply', () {
       final body = OpenAiLlmService(apiKey: 'k', settings: const LlmSettings(temperature: 0.2))
           .requestBody('p');

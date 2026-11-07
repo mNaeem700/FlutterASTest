@@ -11,6 +11,7 @@
 - Fix a false "does not compile" when Windows kept a temporary folder locked.
 - Tests that pass only by hiding errors no longer count as working.
 - Layout bugs in your screen are reported as bugs in your app.
+- Clearer quota errors, and retries wait as long as Gemini asks.
 
 ## 1.1.1 (pre-release)
 
