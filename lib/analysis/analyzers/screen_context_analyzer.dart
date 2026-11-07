@@ -386,6 +386,11 @@ class _DependencyCollector extends RecursiveAstVisitor<void> {
       if (receiver == 'Get' && (node.methodName.name == 'find' || node.methodName.name == 'put')) {
         return _typeArgument(node.typeArguments);
       }
+      final method = node.methodName.name;
+      if ((receiver == 'context' && (method == 'read' || method == 'watch')) ||
+          ((receiver == 'Provider' || receiver == 'BlocProvider') && method == 'of')) {
+        return _typeArgument(node.typeArguments);
+      }
     }
     final singleton = _singletonType(node);
     if (singleton != null) return singleton;
@@ -609,7 +614,10 @@ class _VariableTypeCollector extends RecursiveAstVisitor<void> {
         return first == null ? null : asWidgetCall(first)?.type;
       }
       if (typeArg != null &&
-          (receiver == 'Get' || receiver == 'Provider' || receiver == 'context')) {
+          (receiver == 'Get' ||
+              receiver == 'Provider' ||
+              receiver == 'BlocProvider' ||
+              receiver == 'context')) {
         return typeArg;
       }
     }

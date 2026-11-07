@@ -55,6 +55,7 @@ class ExperimentConfig {
     this.model,
     this.outputRoot,
     this.installTests = false,
+    this.resume = false,
   });
 
   /// Upper bound of repair iterations of the reflection loop (Doc 15.20.3).
@@ -93,6 +94,9 @@ class ExperimentConfig {
 
   /// Copy passing tests into the target project's `test/flutterastest/`.
   final bool installTests;
+
+  /// Replay saved LLM replies, so an interrupted run repeats no call.
+  final bool resume;
 
   /// A developer's run keeps everything in their project. With an explicit
   /// output folder (research runs) the target project stays unchanged.
@@ -133,6 +137,7 @@ class ExperimentConfig {
     String? model,
     String? outputRoot,
     bool? installTests,
+    bool? resume,
   }) =>
       ExperimentConfig(
         mode: mode ?? this.mode,
@@ -148,6 +153,7 @@ class ExperimentConfig {
         model: model ?? this.model,
         outputRoot: outputRoot ?? this.outputRoot,
         installTests: installTests ?? this.installTests,
+        resume: resume ?? this.resume,
       );
 
   /// Reads the YAML configuration file of Doc 17.10. Missing keys keep their

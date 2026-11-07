@@ -83,7 +83,9 @@ FlutterASTest
 Usage:
 
 flutterastest analyse <project>
+flutterastest batch <manifest.yaml>   all projects x setups x repetitions, resumable
 flutterastest compare <runDir> <runDir> [...]   statistics between runs
+flutterastest compare --batch-root <dir> <setup> <setup> [...]   across a batch
 flutterastest accuracy <screen_contexts.json> <truth.json>   RQ1 precision/recall
 
 Options:
@@ -92,6 +94,7 @@ Options:
 --version
 --verbose
 --prompts-only          analyse and write prompts, without LLM calls or test runs
+--resume                replay saved LLM replies after an interruption
 --output <dir>          results folder; the project stays unchanged (research runs)
 --flutter <path>        Flutter to use instead of the detected one (project FVM, then PATH)
 --config <file.yaml>    experiment settings; flags override it

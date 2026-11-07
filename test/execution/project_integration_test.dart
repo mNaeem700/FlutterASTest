@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutterastest/evaluation/evaluation_module.dart';
 import 'package:flutterastest/execution/flutter_command.dart';
 import 'package:flutterastest/execution/models/test_run.dart';
 import 'package:flutterastest/execution/test_installer.dart';
@@ -51,6 +52,16 @@ void main() {
       expect(config.installTests, isFalse);
       expect(config.analysisDirectory, p.join('out', 'analysis'));
     });
+  });
+
+  test('the HTML report escapes names and shows the outcome', () {
+    const response = LlmResponse(text: 'x', model: 'm', latencyMs: 0);
+    final outcome = ScreenOutcome(screenName: 'A<B', screenFile: 'f', prompt: 'p')
+      ..attempts.add(Attempt(iteration: 0, generation: response, code: 'c')
+        ..run = const TestRun(compiled: false, durationMs: 1, cases: []));
+    final html = EvaluationModule.toHtml('pkg', [outcome]);
+    expect(html, contains('A&lt;B'));
+    expect(html, contains('does not compile'));
   });
 
   group('test installer', () {

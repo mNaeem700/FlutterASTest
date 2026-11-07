@@ -122,6 +122,11 @@ dart run bin/flutterastest.dart compare <output>/runs/baseline <output>/runs/pkg
 # RQ1 extraction accuracy against a manual annotation
 dart run bin/flutterastest.dart accuracy <output>/analysis/screen_contexts.json truth.json
 
+# Everything from one manifest: projects x setups x repetitions. Restarting
+# skips finished runs and replays saved LLM replies, so no call is repeated.
+dart run bin/flutterastest.dart batch manifest.yaml
+dart run bin/flutterastest.dart compare --batch-root output/benchmark baseline pkg pkg-reflect
+
 # Unit tests
 dart test
 ```
@@ -152,7 +157,7 @@ Each run writes to `<output>/runs/<run>/`:
 | File | Content |
 |---|---|
 | `prompts/`, `tests/`, `attempts/` | Prompts, final tests, and every attempt's prompt, reply, code and lcov |
-| `results.json`, `results.csv` | Metrics per screen and per attempt, and the run summary |
+| `results.json`, `results.csv`, `report.html` | Metrics per screen and per attempt, the run summary, and a summary page for the browser |
 | `environment.json` | Commits, Flutter and Dart versions, OS, CPU, RAM, configuration |
 | `performance.json` | Time per stage, peak memory, throughput |
 | `run.log` | The run's console output |

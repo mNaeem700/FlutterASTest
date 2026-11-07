@@ -26,6 +26,9 @@ class CLIOptions {
   /// Flutter executable to use instead of the detected one.
   final String? flutter;
 
+  /// Batch folder for `compare`; arguments are then setup names.
+  final String? batchRoot;
+
   const CLIOptions({
     required this.command,
     required this.projectPath,
@@ -36,5 +39,6 @@ class CLIOptions {
     this.experiment = const ExperimentConfig(),
     this.arguments = const [],
     this.flutter,
+    this.batchRoot,
   });
 }

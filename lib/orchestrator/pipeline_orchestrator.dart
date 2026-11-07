@@ -13,6 +13,7 @@ import 'package:flutterastest/experiment/environment_info.dart';
 import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/pkg/models/knowledge_graph.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutterastest/llm/caching_llm_service.dart';
 import 'package:flutterastest/llm/gemini_llm_service.dart';
 import 'package:flutterastest/llm/llm_module.dart';
 import 'package:flutterastest/llm/llm_service.dart';
@@ -215,11 +216,14 @@ class PipelineOrchestrator {
     _registry.register(const PromptOptimizerModule());
     if (promptsOnly) return;
 
-    final llm = _llmService ??
+    final base = _llmService ??
         (config.model == null
             ? GeminiLlmService(apiKey: LlmModule.readApiKeyFromEnvironment())
             : GeminiLlmService(
                 apiKey: LlmModule.readApiKeyFromEnvironment(), model: config.model!));
+    final llm = config.resume
+        ? CachingLlmService(base, p.join(config.outputRoot ?? 'output', 'llm_cache', config.runName))
+        : base;
     final runner = FlutterTestRunner(flutter: command);
     _registry.register(PreflightModule(runner: runner));
     _registry.register(LlmModule(llmService: llm, requestInterval: requestInterval));

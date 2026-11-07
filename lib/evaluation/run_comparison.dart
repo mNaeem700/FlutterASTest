@@ -174,6 +174,51 @@ class RunComparison {
     return out.toString();
   }
 
+  /// Merges one setup across a batch's projects. Screens are keyed by project
+  /// and screen, so equal names in different apps stay apart. Repetitions
+  /// (`pkg-rep1`, `pkg-rep2`) are averaged per screen, because the screen is
+  /// the unit of analysis and repeated samples of it are not independent.
+  static List<Map<String, String>> mergeBatch(String root, String setup) {
+    final repetition = RegExp('^${RegExp.escape(setup)}-rep\\d+\$');
+    final samples = <String, List<Map<String, String>>>{};
+    final projects = Directory(root).listSync().whereType<Directory>();
+    for (final project in projects) {
+      final runs = Directory(p.join(project.path, 'runs'));
+      if (!runs.existsSync()) continue;
+      for (final run in runs.listSync().whereType<Directory>()) {
+        final name = p.basename(run.path);
+        if (name != setup && !repetition.hasMatch(name)) continue;
+        final file = File(p.join(run.path, 'results.csv'));
+        if (!file.existsSync()) continue;
+        for (final row in parseCsv(file.readAsStringSync().replaceAll('\r\n', '\n'))) {
+          samples.putIfAbsent('${p.basename(project.path)}/${row['screen']}', () => []).add(row);
+        }
+      }
+    }
+    return [
+      for (final entry in samples.entries)
+        {
+          'screen': entry.key,
+          for (final metric in metrics)
+            metric: () {
+              final values = entry.value.map((r) => r[metric] ?? '').where((v) => v.isNotEmpty);
+              return values.isEmpty
+                  ? ''
+                  : '${values.map(_number).reduce((a, b) => a + b) / values.length}';
+            }(),
+        },
+    ];
+  }
+
+  /// Compares setups across all projects of a batch folder.
+  Future<void> runBatch(String root, List<String> setups) async {
+    final runs = {for (final setup in setups) setup: mergeBatch(root, setup)};
+    for (final entry in runs.entries) {
+      if (entry.value.isEmpty) throw StateError('No results for "${entry.key}" under $root');
+    }
+    await _write(compare(runs), Directory(p.join(root, 'comparison')));
+  }
+
   /// Reads `results.csv` from each run directory and writes the comparison.
   Future<void> run(List<String> runDirectories) async {
     final runs = <String, List<Map<String, String>>>{};
@@ -183,11 +228,15 @@ class RunComparison {
       runs[p.basename(p.normalize(directory))] =
           parseCsv((await file.readAsString()).replaceAll('\r\n', '\n'));
     }
-    final comparison = compare(runs);
     // Next to the runs: <root>/runs/<run> gives <root>/comparison.
-    final outDir = Directory(
-        p.join(p.dirname(p.dirname(p.normalize(p.absolute(runDirectories.first)))), 'comparison'))
-      ..createSync(recursive: true);
+    await _write(
+        compare(runs),
+        Directory(p.join(
+            p.dirname(p.dirname(p.normalize(p.absolute(runDirectories.first)))), 'comparison')));
+  }
+
+  Future<void> _write(Map<String, dynamic> comparison, Directory outDir) async {
+    outDir.createSync(recursive: true);
     final markdown = toMarkdown(comparison);
     await File(p.join(outDir.path, 'comparison.json'))
         .writeAsString(const JsonEncoder.withIndent('  ').convert(comparison));

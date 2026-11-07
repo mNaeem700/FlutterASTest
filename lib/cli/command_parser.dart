@@ -54,7 +54,9 @@ class CommandParser {
       ..addOption('model')
       ..addOption('token-budget')
       ..addOption('output')
-      ..addOption('flutter');
+      ..addOption('flutter')
+      ..addOption('batch-root')
+      ..addFlag('resume', negatable: false);
 
     final ArgResults result;
     try {
@@ -79,6 +81,7 @@ class CommandParser {
       promptsOnly: result['prompts-only'],
       arguments: result.rest.skip(1).toList(),
       flutter: result['flutter'] as String?,
+      batchRoot: result['batch-root'] as String?,
       experiment: _experiment(result),
     );
   }
@@ -101,6 +104,7 @@ class CommandParser {
           ? Ablation.values.byName(result['ablation'] as String)
           : null,
       label: result['label'] as String?,
+      resume: result['resume'] as bool ? true : null,
       model: result['model'] as String?,
       outputRoot: result['output'] == null
           ? null

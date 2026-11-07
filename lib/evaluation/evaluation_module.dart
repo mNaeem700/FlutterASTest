@@ -68,6 +68,7 @@ class EvaluationModule implements PipelineModule {
     await File(artifacts.resultsJson)
         .writeAsString(const JsonEncoder.withIndent('  ').convert(json));
     await File(artifacts.resultsCsv).writeAsString(toCsv(outcomes));
+    await File(artifacts.reportHtml).writeAsString(toHtml(config.runName, outcomes));
 
     _print(config, metrics);
     if (config.installTests) {
@@ -167,6 +168,35 @@ class EvaluationModule implements PipelineModule {
       ]);
     }
     return '${rows.map((row) => row.map(_csvCell).join(',')).join('\n')}\n';
+  }
+
+  /// A summary to read in a browser; `results.json` remains the full record.
+  static String toHtml(String runName, List<ScreenOutcome> outcomes) {
+    String esc(String s) =>
+        s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    String pct(double ratio) => '${(ratio * 100).toStringAsFixed(1)}%';
+    final rows = StringBuffer();
+    for (final outcome in outcomes) {
+      final run = outcome.finalRun;
+      final status = run == null
+          ? 'not run'
+          : run.allPassed
+              ? 'passed'
+              : run.compiled
+                  ? 'failed'
+                  : 'does not compile';
+      rows.writeln('<tr><td>${esc(outcome.screenName)}</td><td>$status</td>'
+          '<td>${run?.passed ?? 0} / ${(run?.passed ?? 0) + (run?.failed ?? 0)}</td>'
+          '<td>${pct(run?.screenCoverage?.ratio ?? 0)}</td>'
+          '<td>${pct(run?.branchCoverage.value ?? 0)}</td>'
+          '<td>${outcome.repairs}</td></tr>');
+    }
+    return '<!doctype html><meta charset="utf-8"><title>${esc(runName)}</title>'
+        '<style>body{font:14px sans-serif;margin:24px}table{border-collapse:collapse}'
+        'td,th{border:1px solid #bbb;padding:6px 10px;text-align:left}</style>'
+        '<h1>FlutterASTest: ${esc(runName)}</h1><table><tr><th>Screen</th><th>Status</th>'
+        '<th>Tests passed</th><th>Line coverage</th><th>Branch coverage</th><th>Repairs</th></tr>'
+        '$rows</table>';
   }
 
   static String _csvCell(Object? value) {

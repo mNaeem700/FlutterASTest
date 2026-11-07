@@ -1,5 +1,6 @@
 import '../evaluation/extraction_accuracy.dart';
 import '../evaluation/run_comparison.dart';
+import '../experiment/batch_runner.dart';
 import '../orchestrator/pipeline_orchestrator.dart';
 
 import 'models/cli_options.dart';
@@ -22,8 +23,17 @@ class CLIRunner {
 
         break;
 
+      case 'batch':
+        await BatchRunner().runManifest(options.arguments.first);
+        break;
+
       case 'compare':
-        await const RunComparison().run(options.arguments);
+        final root = options.batchRoot;
+        if (root == null) {
+          await const RunComparison().run(options.arguments);
+        } else {
+          await const RunComparison().runBatch(root, options.arguments);
+        }
         break;
 
       case 'accuracy':

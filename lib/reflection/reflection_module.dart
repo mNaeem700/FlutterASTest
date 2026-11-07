@@ -56,7 +56,7 @@ class ReflectionModule implements PipelineModule {
 
     final artifacts = RunArtifacts(config);
     final parser = ResponseParser();
-    var firstCall = true;
+    var waitBeforeCall = false;
 
     for (final outcome in outcomes) {
       final start = outcome.best;
@@ -79,10 +79,9 @@ class ReflectionModule implements PipelineModule {
         final base = outcome.best!;
         final baseRank = ScreenOutcome.rank(base.run!);
 
-        if (!firstCall && requestInterval > Duration.zero) {
+        if (waitBeforeCall && requestInterval > Duration.zero) {
           await Future<void>.delayed(requestInterval);
         }
-        firstCall = false;
 
         final prompt = _promptBuilder.build(
           originalPrompt: outcome.prompt,
@@ -93,6 +92,7 @@ class ReflectionModule implements PipelineModule {
           coverageGuided: config.coverageGuided,
         );
         final response = await llmService.generate(prompt);
+        waitBeforeCall = !response.fromCache;
         if (!response.succeeded) {
           print('  iteration $iteration: LLM call failed (${response.error}), stopping');
           outcome.stoppingReason = 'LLM call failed';

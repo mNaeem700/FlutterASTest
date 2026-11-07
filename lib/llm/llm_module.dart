@@ -77,7 +77,7 @@ class LlmModule implements PipelineModule {
               '${(response.latencyMs / 1000).toStringAsFixed(1)} s'
           : 'FAILED: ${response.error}');
 
-      if (i < prompts.length - 1 && requestInterval > Duration.zero) {
+      if (i < prompts.length - 1 && requestInterval > Duration.zero && !response.fromCache) {
         await Future<void>.delayed(requestInterval);
       }
     }

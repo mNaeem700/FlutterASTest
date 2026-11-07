@@ -24,6 +24,13 @@ class CommandValidator {
         _validateAnalyse(options);
         break;
 
+      case 'batch':
+        if (options.arguments.length != 1 || !File(options.arguments.first).existsSync()) {
+          throw const CLIException(
+              'batch needs an existing manifest file.', ExitCodes.invalidArguments);
+        }
+        break;
+
       case 'compare':
         if (options.arguments.length < 2) {
           throw const CLIException(

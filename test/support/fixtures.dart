@@ -126,6 +126,99 @@ class HomeScreen extends StatelessWidget {
 }
 ''';
 
+/// The same counter screen in the other supported state-management styles.
+const providerSource = r'''
+class CounterModel extends ChangeNotifier {
+  int count = 0;
+  void increment() {
+    count++;
+    notifyListeners();
+  }
+}
+class ProviderScreen extends StatelessWidget {
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: TextButton(
+        onPressed: () => context.read<CounterModel>().increment(),
+        child: const Text('Add'),
+      ),
+    );
+  }
+}
+''';
+
+const cubitSource = r'''
+class CounterCubit extends Cubit<int> {
+  CounterCubit() : super(0);
+  void increment() => emit(state + 1);
+}
+class CubitScreen extends StatelessWidget {
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: BlocBuilder<CounterCubit, int>(builder: (context, count) {
+        return TextButton(
+          onPressed: () => BlocProvider.of<CounterCubit>(context).increment(),
+          child: Text('$count'),
+        );
+      }),
+    );
+  }
+}
+''';
+
+const riverpodSource = r'''
+class CounterNotifier extends StateNotifier<int> {
+  CounterNotifier() : super(0);
+  void increment() {
+    state = state + 1;
+  }
+}
+class RiverpodScreen extends ConsumerWidget {
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: TextButton(
+        onPressed: () => ref.read(counterProvider.notifier).increment(),
+        child: const Text('Add'),
+      ),
+    );
+  }
+}
+''';
+
+const valueNotifierSource = r'''
+class NotifierScreen extends StatefulWidget {
+  State<NotifierScreen> createState() => _NotifierScreenState();
+}
+class _NotifierScreenState extends State<NotifierScreen> {
+  final counter = ValueNotifier<int>(0);
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: TextButton(
+        onPressed: () { counter.value = counter.value + 1; },
+        child: const Text('Add'),
+      ),
+    );
+  }
+}
+''';
+
+const mobxSource = r'''
+class CounterStore {
+  int count = 0;
+  void increment() {
+    runInAction(() => count++);
+  }
+}
+class MobxScreen extends StatelessWidget {
+  final CounterStore store = CounterStore();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: TextButton(onPressed: () => store.increment(), child: const Text('Add')),
+    );
+  }
+}
+''';
+
 List<SourceUnit> loginFixture() => [
       unit('lib/screens/login_screen.dart', loginScreenSource),
       unit('lib/screens/home_screen.dart', homeScreenSource),

@@ -11,6 +11,7 @@ import 'models/screen_outcome.dart';
 ///     tests/<Screen>_test.dart             latest test file of each screen
 ///     attempts/<Screen>/iteration_<k>.*    every attempt: response, code, lcov
 ///     results.json, results.csv            evaluation results
+///     report.html                          per-screen summary
 class RunArtifacts {
   RunArtifacts(ExperimentConfig config) : root = p.absolute(config.runDirectory);
 
@@ -25,6 +26,7 @@ class RunArtifacts {
 
   String get resultsJson => p.join(root, 'results.json');
   String get resultsCsv => p.join(root, 'results.csv');
+  String get reportHtml => p.join(root, 'report.html');
 
   /// Saves the prompt, raw reply and extracted code of [attempt], and makes
   /// its code the screen's current test file.

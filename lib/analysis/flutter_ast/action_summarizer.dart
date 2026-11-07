@@ -313,7 +313,8 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
   @override
   void visitAssignmentExpression(AssignmentExpression node) {
     final left = node.leftHandSide.toSource();
-    if (left.endsWith('.value')) _stateChange('Rx .value', node);
+    if (left.endsWith('.value')) _stateChange('.value', node);
+    if (left == 'state' || left == 'this.state') _stateChange('state =', node);
     super.visitAssignmentExpression(node);
   }
 
@@ -349,7 +350,8 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
       return;
     }
 
-    if (target == null && method == 'update') _stateChange('update()', node);
+    if (target == null && _stateMethods.contains(method)) _stateChange('$method()', node);
+    if (method == 'notifyListeners' && target != null) _stateChange('notifyListeners()', node);
 
     final effect = ActionSummarizer._effectCalls[method];
     if (effect != null) {
@@ -386,6 +388,9 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
     super.visitMethodInvocation(node);
   }
 
+  /// GetX update, Provider notifyListeners, Bloc/Cubit emit, MobX runInAction.
+  static const _stateMethods = {'update', 'notifyListeners', 'emit', 'runInAction'};
+
   void _visitChainArguments(Expression target) {
     Expression? current = target;
     while (current != null) {
@@ -421,7 +426,9 @@ class _ActionCollector extends RecursiveAstVisitor<void> {
 
   /// `Get.find<AuthController>()` → `AuthController`; long chains are shortened.
   String _compactReceiver(String receiver) {
-    final find = RegExp(r'^Get\.(?:find|put)<(\w+)>\(.*\)$').firstMatch(receiver);
+    final find = RegExp(
+            r'^(?:Get\.(?:find|put)|context\.(?:read|watch)|(?:Provider|BlocProvider)\.of)<(\w+)>\(.*\)$')
+        .firstMatch(receiver);
     if (find != null) return find.group(1)!;
     return receiver.length > 60 ? '${receiver.substring(0, 57)}...' : receiver;
   }
