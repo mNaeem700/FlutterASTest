@@ -96,9 +96,12 @@ void main() {
 
   test('response validator rejects truncated code and files without tests', () {
     const validator = ResponseValidator();
-    expect(validator.validate("void main() { testWidgets('a', (t) async {}); }"), isEmpty);
+    const import = "import 'package:flutter_test/flutter_test.dart';\n";
+    expect(validator.validate("${import}void main() { testWidgets('a', (t) async {}); }"), isEmpty);
+    expect(validator.validate("void main() { testWidgets('a', (t) async {}); }").single,
+        contains('no imports'));
     expect(validator.validate('void main() { testWidgets('), isNotEmpty);
-    expect(validator.validate('void main() {}').single, contains('no test'));
+    expect(validator.validate('${import}void main() {}').single, contains('no test'));
     expect(validator.validate('  ').single, contains('no Dart code'));
   });
 

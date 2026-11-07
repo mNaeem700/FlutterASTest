@@ -4,6 +4,7 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 import '../experiment/experiment_config.dart';
+import '../llm/llm_settings.dart';
 import 'cli_exception.dart';
 import 'exit_codes.dart';
 import 'models/cli_options.dart';
@@ -46,7 +47,7 @@ class CommandParser {
       )
       ..addOption(
         'test-timeout',
-        defaultsTo: '300',
+        defaultsTo: '600',
       )
       ..addOption('config')
       ..addOption('ablation', allowed: [for (final a in Ablation.values) a.name])
@@ -56,7 +57,16 @@ class CommandParser {
       ..addOption('output')
       ..addOption('flutter')
       ..addOption('batch-root')
-      ..addFlag('resume', negatable: false);
+      ..addFlag('resume', negatable: false)
+      ..addFlag('mutation', negatable: false)
+      ..addOption('max-mutants')
+      ..addOption('provider', allowed: ['gemini', 'openai'])
+      ..addOption('temperature')
+      ..addOption('top-p')
+      ..addOption('seed')
+      ..addOption('max-output-tokens')
+      ..addOption('request-timeout')
+      ..addMultiOption('screen');
 
     final ArgResults result;
     try {
@@ -106,12 +116,34 @@ class CommandParser {
           : null,
       label: result['label'] as String?,
       resume: result['resume'] as bool ? true : null,
+      mutation: result['mutation'] as bool ? true : null,
+      maxMutants: result.wasParsed('max-mutants') ? _positiveInt(result, 'max-mutants') : null,
+      provider: result['provider'] as String?,
+      screens: result.wasParsed('screen') ? (result['screen'] as List<String>).toSet() : null,
+      llm: LlmSettings(
+        temperature: _number(result, 'temperature') ?? base.llm.temperature,
+        topP: _number(result, 'top-p') ?? base.llm.topP,
+        seed: _number(result, 'seed')?.toInt() ?? base.llm.seed,
+        maxOutputTokens: _number(result, 'max-output-tokens')?.toInt() ?? base.llm.maxOutputTokens,
+        requestTimeout: result.wasParsed('request-timeout')
+            ? Duration(seconds: _positiveInt(result, 'request-timeout'))
+            : base.llm.requestTimeout,
+      ),
       model: result['model'] as String?,
       outputRoot: result['output'] == null
           ? null
           : p.normalize(p.absolute(result['output'] as String)),
       tokenBudget: result.wasParsed('token-budget') ? _positiveInt(result, 'token-budget') : null,
     );
+  }
+
+  static double? _number(ArgResults result, String name) {
+    if (!result.wasParsed(name)) return null;
+    final value = double.tryParse(result[name] as String);
+    if (value == null) {
+      throw CLIException('--$name must be a number.', ExitCodes.invalidArguments);
+    }
+    return value;
   }
 
   static int _positiveInt(ArgResults result, String name) {

@@ -15,7 +15,7 @@ import 'package:flutterastest/experiment/experiment_config.dart';
 import 'package:flutterastest/pkg/models/knowledge_graph.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutterastest/llm/caching_llm_service.dart';
-import 'package:flutterastest/llm/gemini_llm_service.dart';
+import 'package:flutterastest/llm/llm_factory.dart';
 import 'package:flutterastest/llm/llm_module.dart';
 import 'package:flutterastest/llm/llm_service.dart';
 import 'package:flutterastest/parser/parser_module.dart';
@@ -23,6 +23,7 @@ import 'package:flutterastest/analysis/analysis_module.dart';
 import 'package:flutterastest/pkg/pkg_module.dart';
 import 'package:flutterastest/prompt_builder/prompt_module.dart';
 import 'package:flutterastest/prompt_optimizer/prompt_optimizer_module.dart';
+import 'package:flutterastest/mutation/mutation_module.dart';
 import 'package:flutterastest/reflection/reflection_module.dart';
 
 import 'contracts/pipeline_module.dart';
@@ -251,11 +252,7 @@ class PipelineOrchestrator {
     _registry.register(const PromptOptimizerModule());
     if (promptsOnly) return;
 
-    final base = _llmService ??
-        (config.model == null
-            ? GeminiLlmService(apiKey: LlmModule.readApiKeyFromEnvironment())
-            : GeminiLlmService(
-                apiKey: LlmModule.readApiKeyFromEnvironment(), model: config.model!));
+    final base = _llmService ?? createLlmService(config);
     final llm = config.resume
         ? CachingLlmService(base, p.join(config.outputRoot ?? 'output', 'llm_cache', config.runName))
         : base;
@@ -266,6 +263,7 @@ class PipelineOrchestrator {
     if (config.reflect) {
       _registry.register(ReflectionModule(llmService: llm, requestInterval: requestInterval));
     }
+    if (config.mutation) _registry.register(MutationModule(runner: runner));
     _registry.register(EvaluationModule(llmService: llm));
   }
 }

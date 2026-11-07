@@ -104,9 +104,15 @@ Options:
 --label <text>          run name suffix, e.g. rep2 for repetitions
 --model <id>            LLM model id
 --token-budget <n>      context limit in estimated tokens (default 8000)
+--screen <name>         only this screen; repeat for more
+--provider <p>          gemini (default) or openai (any OpenAI-compatible API)
+--temperature <t>, --top-p <p>, --seed <n>, --max-output-tokens <n>,
+--request-timeout <s>   LLM settings; unset values use the provider default
+--mutation              measure passing tests with mutation testing (slow)
+--max-mutants <n>       mutants per screen (default 20)
 --reflect               repair failing tests by feeding run results back to the LLM
 --max-iterations <n>    maximum repair iterations with --reflect (default 5)
---test-timeout <s>      seconds before a flutter test run is killed (default 300)
+--test-timeout <s>      seconds before a flutter test run is killed (default 600)
 
 By default reports go to <project>/.flutterastest/ and passing tests to
 <project>/test/flutterastest/. The LLM key is read from the GEMINI_API_KEY

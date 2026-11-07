@@ -1,0 +1,7 @@
+output/
+build/
+coverage/
+vscode-extension/
+Dockerfile
+.dockerignore
+.mcp.json

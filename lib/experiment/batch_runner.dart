@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import '../llm/llm_service.dart';
+import '../llm/llm_settings.dart';
 import '../orchestrator/pipeline_orchestrator.dart';
 import 'experiment_config.dart';
 
@@ -79,7 +80,19 @@ class BatchRunner {
         maxIterations:
             manifest['maxIterations'] as int? ?? ExperimentConfig.defaultMaxIterations,
         tokenBudget: manifest['tokenBudget'] as int? ?? 8000,
-        testTimeout: Duration(seconds: manifest['testTimeoutSeconds'] as int? ?? 300),
+        testTimeout: Duration(seconds: manifest['testTimeoutSeconds'] as int? ?? 600),
+        provider: manifest['provider'] as String? ?? 'gemini',
+        mutation: manifest['mutation'] as bool? ?? false,
+        maxMutants: manifest['maxMutants'] as int? ?? 20,
+        llm: LlmSettings(
+          temperature: (manifest['temperature'] as num?)?.toDouble(),
+          topP: (manifest['topP'] as num?)?.toDouble(),
+          seed: manifest['seed'] as int?,
+          maxOutputTokens: manifest['maxOutputTokens'] as int?,
+          requestTimeout: manifest['requestTimeoutSeconds'] == null
+              ? null
+              : Duration(seconds: manifest['requestTimeoutSeconds'] as int),
+        ),
         flakyRetries: manifest['flakyRetries'] as int? ?? 2,
         model: manifest['model'] as String?,
       );

@@ -15,6 +15,7 @@ import '../orchestrator/contracts/pipeline_module.dart';
 import '../orchestrator/pipeline_context.dart';
 import '../orchestrator/pipeline_stage.dart';
 import '../prompt_optimizer/prompt_builder.dart';
+import 'pdf_report.dart';
 import 'run_metrics.dart';
 
 /// Computes the run's metrics and exports them to `results.json` (complete,
@@ -81,6 +82,26 @@ class EvaluationModule implements PipelineModule {
         .writeAsString(const JsonEncoder.withIndent('  ').convert(json));
     await File(artifacts.resultsCsv).writeAsString(toCsv(outcomes));
     await File(artifacts.reportHtml).writeAsString(toHtml(config.runName, outcomes));
+    await File(artifacts.reportPdf).writeAsBytes(const PdfReport().build(
+      'FlutterASTest: ${config.runName}',
+      [
+        'Project: ${analysis.projectInfo.packageName}',
+        'Model: ${llmService.model}',
+        'Screens: ${metrics.screens}  Compiled: ${metrics.finalState.compiled}  '
+            'All tests pass: ${metrics.finalState.allPassed}',
+        'Test cases passed: ${metrics.finalState.passedCases} / ${metrics.finalState.totalCases}',
+        'Mean line coverage: ${(metrics.meanScreenCoverage * 100).toStringAsFixed(1)}%',
+        'Tokens prompt / output: ${metrics.promptTokens} / ${metrics.outputTokens}',
+        '',
+        'Screen                           Status   Tests   Line%  Branch%',
+        for (final outcome in outcomes)
+          '${outcome.screenName.padRight(33)}'
+              '${(outcome.finalRun?.allPassed ?? false ? 'pass' : 'fail').padRight(9)}'
+              '${'${outcome.finalRun?.passed ?? 0}/${(outcome.finalRun?.passed ?? 0) + (outcome.finalRun?.failed ?? 0)}'.padRight(8)}'
+              '${((outcome.finalRun?.screenCoverage?.ratio ?? 0) * 100).toStringAsFixed(1).padRight(7)}'
+              '${((outcome.finalRun?.branchCoverage.value ?? 0) * 100).toStringAsFixed(1)}',
+      ],
+    ));
 
     _print(config, metrics);
     if (config.installTests) {
@@ -135,6 +156,7 @@ class EvaluationModule implements PipelineModule {
     'test_smells',
     'stopping_reason',
     'maintainability_index',
+    'mutation_score_pct',
   ];
 
   static String toCsv(List<ScreenOutcome> outcomes) {
@@ -179,6 +201,7 @@ class EvaluationModule implements PipelineModule {
         quality?.totalSmells ?? 0,
         outcome.stoppingReason ?? '',
         (quality?.maintainabilityIndex ?? 0).toStringAsFixed(2),
+        outcome.best?.mutation == null ? '' : pct(outcome.best!.mutation!.score),
       ]);
     }
     return '${rows.map((row) => row.map(_csvCell).join(',')).join('\n')}\n';
@@ -245,6 +268,8 @@ class EvaluationModule implements PipelineModule {
         '${pct(m.details['meanStateCoverage'] as double)}');
     print('Assertions per test / flaky  : ${m.details['meanAssertionsPerTest']} / ${m.details['flakyTests']}');
     print('Maintainability index        : ${m.details['meanMaintainabilityIndex']}');
+    final mutation = m.details['meanMutationScore'] as double?;
+    if (mutation != null) print('Mean mutation score          : ${pct(mutation)}');
     print('Tokens prompt / output       : ${m.promptTokens} / ${m.outputTokens}');
     print('LLM time / test time         : ${(m.llmLatencyMs / 1000).toStringAsFixed(1)} s / '
         '${(m.testDurationMs / 1000).toStringAsFixed(1)} s');

@@ -9,9 +9,12 @@ import 'package:analyzer/error/error.dart';
 class ResponseValidator {
   const ResponseValidator();
 
+  static const maxSize = 5 * 1024 * 1024;
+
   /// Returns the problems found; empty means the file may be executed.
   List<String> validate(String code) {
     if (code.trim().isEmpty) return const ['The response contains no Dart code.'];
+    if (code.length > maxSize) return const ['The response is larger than 5 MB.'];
 
     final result = parseString(content: code, throwIfDiagnostics: false);
     final problems = <String>[
@@ -20,6 +23,10 @@ class ResponseValidator {
           'Syntax error at line ${result.lineInfo.getLocation(diagnostic.offset).lineNumber}: '
               '${diagnostic.message}',
     ];
+
+    if (!result.unit.directives.any((d) => d is ImportDirective)) {
+      problems.add('The file has no imports.');
+    }
 
     final finder = _TestFinder();
     result.unit.accept(finder);

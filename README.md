@@ -42,8 +42,8 @@ FlutterASTest is built as a highly modular, extensible Dart library utilizing an
 
 ### Setup
 ```bash
-# Activate the CLI globally (Coming Soon to pub.dev)
-dart pub global activate flutterastest
+# Activate the CLI globally from a clone of this repository
+dart pub global activate --source path .
 
 # Initialize configuration in your Flutter project
 flutterastest init
@@ -127,6 +127,13 @@ dart run bin/flutterastest.dart accuracy <output>/analysis/screen_contexts.json 
 dart run bin/flutterastest.dart batch manifest.yaml
 dart run bin/flutterastest.dart compare --batch-root output/benchmark baseline pkg pkg-reflect
 
+# Mutation score of passing tests, on a temporary copy of the project (slow)
+dart run bin/flutterastest.dart analyse <project> --mutation --max-mutants 20
+
+# Only some screens, and another provider or sampling settings
+dart run bin/flutterastest.dart analyse <project> --screen LoginScreen --temperature 0.2 --seed 42
+dart run bin/flutterastest.dart analyse <project> --provider openai --model gpt-4.1
+
 # Unit tests
 dart test
 ```
@@ -163,5 +170,7 @@ Each run writes to `<output>/runs/<run>/`:
 | `run.log` | The run's console output |
 
 The PKG itself is exported to `<output>/analysis/pkg.jsonld` and `pkg.graphml`.
+
+**Install and integrations.** `dart pub global activate --source path .` installs the `flutterastest` command. The [`vscode-extension/`](vscode-extension/) folder holds the VS Code extension, and the `Dockerfile` the replication environment. `OPENAI_API_KEY` and `OPENAI_BASE_URL` configure `--provider openai`, including local OpenAI-compatible servers.
 
 **Execution notes.** While running, each attempt is copied to `test/flutterastest_tmp/` in the target project and deleted afterwards. Only files whose tests all pass are installed into `test/flutterastest/`, and a file there that FlutterASTest did not generate is never overwritten. A failing file is rerun to detect flaky tests, which stay counted as failed. Network access is limited by `flutter_test` itself, whose default `HttpClient` answers every request with HTTP 400; this is not an OS-level block, so code using raw sockets is not stopped.

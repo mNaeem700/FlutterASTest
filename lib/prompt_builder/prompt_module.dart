@@ -31,9 +31,16 @@ class PromptModule implements PipelineModule {
   @override
   Future<void> execute(PipelineContext context) async {
     final config = context.get<ExperimentConfig>() ?? const ExperimentConfig();
-    final contexts = config.mode == ContextMode.pkg
+    final all = config.mode == ContextMode.pkg
         ? _fromGraph(context, config)
         : _fromSource(context, config);
+    final contexts = config.screens.isEmpty
+        ? all
+        : [for (final c in all) if (config.screens.contains(c.screenName)) c];
+    if (contexts.isEmpty && config.screens.isNotEmpty) {
+      throw Exception('No analysed screen is named ${config.screens.join(', ')}. '
+          'Screens found: ${all.map((c) => c.screenName).join(', ')}');
+    }
     context.put<List<PromptContext>>(contexts);
     print('Generated context for ${contexts.length} screens.');
   }

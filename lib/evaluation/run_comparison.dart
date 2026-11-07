@@ -24,6 +24,7 @@ class RunComparison {
     'assertions_per_test',
     'test_smells',
     'maintainability_index',
+    'mutation_score_pct',
     'prompt_tokens',
     'output_tokens',
   ];
@@ -236,8 +237,42 @@ class RunComparison {
             p.dirname(p.dirname(p.normalize(p.absolute(runDirectories.first)))), 'comparison')));
   }
 
+  /// Mean with 95% confidence interval per run, as an SVG bar chart.
+  static String figure(String metric, Map<String, dynamic> descriptive) {
+    const barWidth = 70, gap = 40, height = 260, top = 40, left = 50;
+    final entries = descriptive.entries.toList();
+    final highs = [for (final e in entries) (e.value['ci95'][1] as num).toDouble()];
+    final maximum = highs.fold<double>(1e-9, (a, b) => a > b ? a : b);
+    double y(num value) => top + height - value / maximum * height;
+    final width = left + entries.length * (barWidth + gap) + gap;
+    final out = StringBuffer('<svg xmlns="http://www.w3.org/2000/svg" width="$width" '
+        'height="${top + height + 60}" font-family="sans-serif" font-size="12">'
+        '<text x="$left" y="20" font-size="14">$metric</text>'
+        '<line x1="$left" y1="${top + height}" x2="$width" y2="${top + height}" stroke="#333"/>');
+    for (var i = 0; i < entries.length; i++) {
+      final d = entries[i].value;
+      final mean = d['mean'] as num;
+      final x = left + gap + i * (barWidth + gap);
+      final mid = x + barWidth / 2;
+      out
+        ..write('<rect x="$x" y="${y(mean)}" width="$barWidth" '
+            'height="${top + height - y(mean)}" fill="#4878a8"/>')
+        ..write('<line x1="$mid" y1="${y(d['ci95'][0] as num)}" x2="$mid" '
+            'y2="${y(d['ci95'][1] as num)}" stroke="#000"/>')
+        ..write('<text x="$mid" y="${top + height + 16}" text-anchor="middle">${entries[i].key}</text>')
+        ..write('<text x="$mid" y="${top + height + 32}" text-anchor="middle">${mean.toStringAsFixed(2)}</text>');
+    }
+    out.write('</svg>');
+    return out.toString();
+  }
+
   Future<void> _write(Map<String, dynamic> comparison, Directory outDir) async {
     outDir.createSync(recursive: true);
+    final figures = Directory(p.join(outDir.path, 'figures'))..createSync();
+    (comparison['metrics'] as Map<String, dynamic>).forEach((metric, entry) {
+      File(p.join(figures.path, '$metric.svg'))
+          .writeAsStringSync(figure(metric, entry['descriptive'] as Map<String, dynamic>));
+    });
     final markdown = toMarkdown(comparison);
     await File(p.join(outDir.path, 'comparison.json'))
         .writeAsString(const JsonEncoder.withIndent('  ').convert(comparison));

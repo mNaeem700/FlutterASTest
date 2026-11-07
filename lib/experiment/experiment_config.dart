@@ -4,6 +4,8 @@ import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+import '../llm/llm_settings.dart';
+
 /// What the LLM is shown about the screen under test (Doc 16.6, 16.8).
 enum ContextMode {
   /// Group C/D: context selected from the Program Knowledge Graph.
@@ -45,7 +47,7 @@ class ExperimentConfig {
     this.mode = ContextMode.pkg,
     this.reflect = false,
     this.maxIterations = defaultMaxIterations,
-    this.testTimeout = const Duration(minutes: 5),
+    this.testTimeout = const Duration(minutes: 10),
     this.ablation = Ablation.none,
     this.tokenBudget = 8000,
     this.flakyRetries = 2,
@@ -57,6 +59,11 @@ class ExperimentConfig {
     this.outputRoot,
     this.installTests = false,
     this.resume = false,
+    this.provider = 'gemini',
+    this.llm = const LlmSettings(),
+    this.mutation = false,
+    this.maxMutants = 20,
+    this.screens = const {},
   });
 
   /// Upper bound of repair iterations of the reflection loop (Doc 15.20.3).
@@ -100,6 +107,17 @@ class ExperimentConfig {
   /// Replay saved LLM replies, so an interrupted run repeats no call.
   final bool resume;
 
+  /// `gemini` or `openai` (any OpenAI-compatible API).
+  final String provider;
+  final LlmSettings llm;
+
+  /// Measure each passing test file with mutation testing; slow.
+  final bool mutation;
+  final int maxMutants;
+
+  /// Only these screens; empty means all.
+  final Set<String> screens;
+
   /// A developer's run keeps everything in their project. With an explicit
   /// output folder (research runs) the target project stays unchanged.
   ExperimentConfig resolvedFor(String projectPath) => outputRoot != null
@@ -140,6 +158,11 @@ class ExperimentConfig {
     String? outputRoot,
     bool? installTests,
     bool? resume,
+    String? provider,
+    LlmSettings? llm,
+    bool? mutation,
+    int? maxMutants,
+    Set<String>? screens,
   }) =>
       ExperimentConfig(
         mode: mode ?? this.mode,
@@ -157,6 +180,11 @@ class ExperimentConfig {
         outputRoot: outputRoot ?? this.outputRoot,
         installTests: installTests ?? this.installTests,
         resume: resume ?? this.resume,
+        provider: provider ?? this.provider,
+        llm: llm ?? this.llm,
+        mutation: mutation ?? this.mutation,
+        maxMutants: maxMutants ?? this.maxMutants,
+        screens: screens ?? this.screens,
       );
 
   /// Reads the YAML configuration file of Doc 17.10. Missing keys keep their
@@ -180,8 +208,20 @@ class ExperimentConfig {
       targetBranchCoverage: (read(reflection, 'targetBranchCoverage') as num?)?.toDouble() ?? 0.8,
       minimumImprovement: (read(reflection, 'minimumImprovement') as num?)?.toDouble() ?? 0.02,
       model: read(llm, 'model') as String?,
+      provider: read(llm, 'provider') as String? ?? 'gemini',
+      llm: LlmSettings(
+        temperature: (read(llm, 'temperature') as num?)?.toDouble(),
+        topP: (read(llm, 'topP') as num?)?.toDouble(),
+        seed: read(llm, 'seed') as int?,
+        maxOutputTokens: read(llm, 'maxOutputTokens') as int?,
+        requestTimeout: read(llm, 'timeoutSeconds') == null
+            ? null
+            : Duration(seconds: read(llm, 'timeoutSeconds') as int),
+      ),
+      mutation: read(yaml['mutation'], 'enabled') as bool? ?? false,
+      maxMutants: read(yaml['mutation'], 'maxMutants') as int? ?? 20,
       tokenBudget: read(context, 'tokenBudget') as int? ?? 8000,
-      testTimeout: Duration(seconds: read(execution, 'testTimeoutSeconds') as int? ?? 300),
+      testTimeout: Duration(seconds: read(execution, 'testTimeoutSeconds') as int? ?? 600),
       flakyRetries: read(execution, 'flakyRetries') as int? ?? 2,
     );
   }
@@ -198,6 +238,11 @@ class ExperimentConfig {
         'targetBranchCoverage': targetBranchCoverage,
         'minimumImprovement': minimumImprovement,
         'label': label,
+        'provider': provider,
+        'llmSettings': llm.toJson(),
+        'mutation': mutation,
+        'maxMutants': maxMutants,
+        if (screens.isNotEmpty) 'screens': screens.toList(),
         'installTests': installTests,
       };
 }

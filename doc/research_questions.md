@@ -27,6 +27,6 @@ Each has its null hypothesis as stated in Doc 16.4, tested at α = 0.05 with eff
 
 ## Open points for the principal investigator
 
-1. **Test correctness.** A passing test can assert very little, so pass rate alone is weak evidence of correctness. Mutation score is the standard stronger measure. Doc 16.5 marks it optional and the tool does not compute it. Reviewers at the target venues are likely to ask about this, so we recommend adding it, or at least stating the limitation under threats to validity.
+1. **Test correctness.** A passing test can assert very little, so pass rate alone is weak evidence of correctness. Mutation score is the standard stronger measure, and the tool now computes it with `--mutation` (Doc 16.5 marks it optional). It adds many test runs per screen, so the experiments must decide where to apply it: all runs, or a sample stated in the paper.
 2. **Practical usability (RQ4).** With human studies out of scope, usability is measured only through proxies such as effort and scalability. The paper must state this limit.
 3. **Baseline 1.** Doc 16.8 says "Manual Test Development". Because human studies are excluded, this is interpreted as the tests already in the benchmark apps' repositories.

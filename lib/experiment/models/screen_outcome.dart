@@ -1,6 +1,7 @@
 import '../../evaluation/test_quality_analyzer.dart';
 import '../../execution/models/test_run.dart';
 import '../../llm/models/llm_response.dart';
+import '../../mutation/mutation_module.dart';
 import '../../reflection/failure_analyzer.dart';
 
 /// One generated version of a screen's test file. Iteration 0 is the
@@ -18,6 +19,9 @@ class Attempt {
   /// Diagnosis of [run], set by the reflection loop.
   FailureAnalysis? analysis;
 
+  /// Set when mutation testing ran on this attempt.
+  MutationResult? mutation;
+
   TestQuality get quality => const TestQualityAnalyzer().analyse(code);
 
   Map<String, dynamic> toJson() => {
@@ -25,6 +29,7 @@ class Attempt {
         'generation': generation.toJson(),
         'quality': quality.toJson(),
         'analysis': analysis?.toJson(),
+        if (mutation != null) 'mutation': mutation!.toJson(),
         'run': run?.toJson(),
       };
 }

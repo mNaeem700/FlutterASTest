@@ -1,6 +1,8 @@
 name: flutterastest
 description: FlutterASTest - AST-Augmented LLM Framework for Automated Widget Test Generation in Flutter Applications
 version: 1.0.0
+repository: https://github.com/mNaeem700/FlutterASTest
+issue_tracker: https://github.com/mNaeem700/FlutterASTest/issues
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -14,9 +16,10 @@ dependencies:
   crypto: ^3.0.6
   meta: ^1.17.0
   analyzer: ^8.2.0
-  mockito: ^5.4.4
-  build_runner: ^2.4.8
-  google_generative_ai: ^0.4.7
+
+executables:
+  flutterastest: flutterastest
+
 dev_dependencies:
   lints: ^6.0.0
   test: ^1.26.3

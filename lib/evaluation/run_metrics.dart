@@ -127,6 +127,13 @@ class RunMetrics {
       'rejectedBeforeExecution': runs.where((r) => r?.rejectedBeforeExecution ?? false).length,
       'meanAssertionsPerTest': _round(_mean(qualities.map((q) => q.assertionsPerTest))),
       'meanMaintainabilityIndex': _round(_mean(qualities.map((q) => q.maintainabilityIndex))),
+      'meanMutationScore': () {
+        final scores = [
+          for (final o in outcomes)
+            if (o.best?.mutation != null) o.best!.mutation!.score,
+        ];
+        return scores.isEmpty ? null : _round(_mean(scores));
+      }(),
       'testSmells': smells,
       'initialFailureCategories': failures,
       'stoppingReasons': stops,

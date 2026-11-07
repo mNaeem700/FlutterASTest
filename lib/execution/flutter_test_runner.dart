@@ -84,6 +84,7 @@ void main() {
     required String code,
     required String lcovPath,
     required Duration timeout,
+    bool collectCoverage = true,
   }) async {
     if (code.trim().isEmpty) {
       return const TestRun(
@@ -117,10 +118,7 @@ void main() {
           '--reporter',
           'json',
           '--no-pub',
-          '--coverage',
-          '--branch-coverage',
-          '--coverage-path',
-          lcov.absolute.path,
+          if (collectCoverage) ...['--coverage', '--branch-coverage', '--coverage-path', lcov.absolute.path],
         ],
         workingDirectory: projectPath,
       );

@@ -1,0 +1,77 @@
+{
+  "name": "flutterastest",
+  "displayName": "FlutterASTest",
+  "description": "Generate and run Flutter widget tests from an AST-based Program Knowledge Graph.",
+  "version": "1.0.0",
+  "publisher": "mnaeem700",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mNaeem700/FlutterASTest"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Testing"],
+  "main": "./extension.js",
+  "activationEvents": ["workspaceContains:pubspec.yaml"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "flutterastest.generateProject",
+        "title": "FlutterASTest: Generate Tests for All Screens"
+      },
+      {
+        "command": "flutterastest.generateFile",
+        "title": "FlutterASTest: Generate Tests for Screens in This File"
+      },
+      {
+        "command": "flutterastest.preview",
+        "title": "FlutterASTest: Build Prompts Only (No LLM Calls)"
+      },
+      {
+        "command": "flutterastest.openReport",
+        "title": "FlutterASTest: Open Latest Report"
+      },
+      {
+        "command": "flutterastest.setApiKey",
+        "title": "FlutterASTest: Set API Key"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "flutterastest.generateFile",
+          "when": "resourceLangId == dart",
+          "group": "flutterastest"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FlutterASTest",
+      "properties": {
+        "flutterastest.executable": {
+          "type": "string",
+          "default": "flutterastest",
+          "description": "The FlutterASTest command. Install it with: dart pub global activate --source path <clone>"
+        },
+        "flutterastest.provider": {
+          "type": "string",
+          "enum": ["gemini", "openai"],
+          "default": "gemini",
+          "description": "LLM provider."
+        },
+        "flutterastest.reflect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Repair failing tests by feeding run results back to the LLM."
+        },
+        "flutterastest.flutterPath": {
+          "type": "string",
+          "default": "",
+          "description": "Flutter to use. Empty detects it per project (its FVM SDK, then PATH)."
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'llm_service.dart';
+import 'llm_settings.dart';
 import 'models/llm_response.dart';
 
 class GeminiLlmService implements LlmService {
@@ -11,9 +12,11 @@ class GeminiLlmService implements LlmService {
     this.model = 'gemini-3.6-flash',
     this.maxAttempts = 4,
     this.retryDelay = const Duration(seconds: 30),
+    this.settings = const LlmSettings(),
   });
 
   final String apiKey;
+  final LlmSettings settings;
 
   @override
   final String model;
@@ -24,6 +27,25 @@ class GeminiLlmService implements LlmService {
 
   /// Quota, overload and server errors are worth retrying; other 4xx are not.
   static const _retryableStatus = {408, 429, 500, 502, 503, 504};
+
+  Map<String, dynamic> requestBody(String prompt) {
+    final generation = {
+      if (settings.temperature != null) 'temperature': settings.temperature,
+      if (settings.topP != null) 'topP': settings.topP,
+      if (settings.seed != null) 'seed': settings.seed,
+      if (settings.maxOutputTokens != null) 'maxOutputTokens': settings.maxOutputTokens,
+    };
+    return {
+      'contents': [
+        {
+          'parts': [
+            {'text': prompt},
+          ],
+        },
+      ],
+      if (generation.isNotEmpty) 'generationConfig': generation,
+    };
+  }
 
   @override
   Future<LlmResponse> generate(String prompt) async {
@@ -40,18 +62,11 @@ class GeminiLlmService implements LlmService {
         final request = await client.postUrl(uri);
         request.headers.contentType = ContentType.json;
         request.headers.set('x-goog-api-key', apiKey);
-        request.write(jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt},
-              ],
-            },
-          ],
-        }));
+        request.write(jsonEncode(requestBody(prompt)));
 
-        final response = await request.close();
-        final body = await response.transform(utf8.decoder).join();
+        final timeout = settings.requestTimeout ?? const Duration(minutes: 10);
+        final response = await request.close().timeout(timeout);
+        final body = await response.transform(utf8.decoder).join().timeout(timeout);
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
           lastError = 'HTTP ${response.statusCode}: ${_firstLine(body)}';

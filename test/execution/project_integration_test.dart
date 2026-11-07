@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutterastest/evaluation/evaluation_module.dart';
+import 'package:flutterastest/evaluation/pdf_report.dart';
+import 'package:flutterastest/evaluation/run_comparison.dart';
 import 'package:flutterastest/execution/flutter_command.dart';
 import 'package:flutterastest/execution/models/test_run.dart';
 import 'package:flutterastest/execution/test_installer.dart';
@@ -52,6 +54,27 @@ void main() {
       expect(config.installTests, isFalse);
       expect(config.analysisDirectory, p.join('out', 'analysis'));
     });
+  });
+
+  test('the PDF is well formed and its cross references point at the objects', () {
+    final bytes = const PdfReport().build('T(1)', List.generate(120, (i) => 'line $i'));
+    final text = String.fromCharCodes(bytes);
+    expect(text, startsWith('%PDF-1.4'));
+    expect(text, contains('/Count 3'));
+    expect(text, contains(r'T\(1\)'));
+    final xrefAt = int.parse(RegExp(r'startxref\n(\d+)').firstMatch(text)!.group(1)!);
+    expect(text.substring(xrefAt), startsWith('xref'));
+    final first = RegExp(r'(\d{10}) 00000 n').firstMatch(text)!.group(1)!;
+    expect(text.substring(int.parse(first)), startsWith('1 0 obj'));
+  });
+
+  test('comparison figures are SVG bar charts', () {
+    final svg = RunComparison.figure('m', {
+      'a': {'mean': 2.0, 'ci95': [1.0, 3.0]},
+      'b': {'mean': 0, 'ci95': [0, 0]},
+    });
+    expect(svg, startsWith('<svg'));
+    expect('<rect'.allMatches(svg), hasLength(2));
   });
 
   test('the HTML report escapes names and shows the outcome', () {

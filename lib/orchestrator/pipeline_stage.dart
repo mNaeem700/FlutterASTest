@@ -19,6 +19,8 @@ enum PipelineStage {
 
   reflection,
 
+  mutation,
+
   evaluation,
 
   completed,
