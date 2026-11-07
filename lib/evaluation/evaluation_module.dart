@@ -107,9 +107,9 @@ class EvaluationModule implements PipelineModule {
       print(friendlySummary(outcomes, installed, artifacts.root));
     } else {
       _print(config, metrics);
+      print('Results: ${artifacts.resultsJson}');
+      print('         ${artifacts.resultsCsv}\n');
     }
-    print('Results: ${artifacts.resultsJson}');
-    print('         ${artifacts.resultsCsv}\n');
   }
 
   Map<String, dynamic> _screenJson(ScreenOutcome outcome) => {

@@ -129,7 +129,7 @@ class ExecutorModule implements PipelineModule {
 
   @override
   Future<void> execute(PipelineContext context) async {
-    print('\nExecuting generated tests in the target project...');
+    print('\nRunning the tests in your project...');
     print('--------------------------------------------------');
 
     final config = context.get<ExperimentConfig>() ?? const ExperimentConfig();

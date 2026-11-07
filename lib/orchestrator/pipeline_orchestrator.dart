@@ -203,8 +203,7 @@ class PipelineOrchestrator {
 
       _logger.info('');
       _logger.info('Pipeline completed successfully.');
-      print('\nDone in ${(stopwatch.elapsed.inMilliseconds / 1000).toStringAsFixed(1)} s. '
-          'Reports: ${config.runDirectory}');
+      print('\nDone in ${(stopwatch.elapsed.inMilliseconds / 1000).toStringAsFixed(1)} s.');
       _logger.info(
         'Execution Time : ${context.metrics.totalExecutionTime.inMilliseconds} ms',
       );

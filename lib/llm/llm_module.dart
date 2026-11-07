@@ -41,7 +41,7 @@ class LlmModule implements PipelineModule {
 
   @override
   Future<void> execute(PipelineContext context) async {
-    print('\nGenerating widget tests via LLM (${llmService.model})...');
+    print('\nWriting tests with AI (${llmService.model})...');
     print('------------------------------------------------------');
 
     final config = context.get<ExperimentConfig>() ?? const ExperimentConfig();
