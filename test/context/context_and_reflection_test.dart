@@ -234,7 +234,12 @@ final table = {'/map': (context) => const HomeScreen(), 'other': 3};
     test('GetX, go_router and route maps are read', () {
       final unit = parseString(content: routes, throwIfDiagnostics: false).unit;
       final table = const RouteTable().build([unit], {'LoginScreen', 'HomeScreen'});
-      expect(table, {'Routes.login': 'LoginScreen', '/home': 'HomeScreen', '/map': 'HomeScreen'});
+      expect(table, {
+        'Routes.login': 'LoginScreen',
+        '/login': 'LoginScreen',
+        '/home': 'HomeScreen',
+        '/map': 'HomeScreen',
+      });
     });
 
     test('helper methods and constants resolve the GetX way', () {
